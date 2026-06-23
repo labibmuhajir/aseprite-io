@@ -113,6 +113,77 @@ fn linked_cels() {
 }
 
 #[test]
+fn linked_cels_with_custom_props() {
+    let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
+    let layer = file.add_layer("Layer");
+    file.add_frame(100);
+    file.add_frame(100);
+
+    // 1. Set a standard cel at frame 0 as the reference source
+    let pixels = Pixels::new(vec![128u8; 2 * 2 * 4], 2, 2, ColorMode::Rgba).unwrap();
+    file.set_cel(layer, 0, pixels, 0, 0).unwrap();
+
+    // Mock UserData and CelExtra for testing property preservation
+    let mock_user_data = UserData {
+        text: Some("Linked Custom Text".to_string()),
+        color: None,
+        properties: vec![],
+    };
+    let mock_extra = CelExtra {
+        precise_x: 10,
+        precise_y: 20,
+        width: 2,
+        height: 2,
+    };
+
+    // 2. Use the new custom function to set a Linked Cel with explicit properties at frame 1
+    file.set_linked_cel_with_props(
+        layer,
+        1,   // target frame
+        0,   // source frame
+        15,  // x position
+        -5,  // y position
+        180, // opacity
+        3,   // z_index
+        Some(mock_user_data),
+        Some(mock_extra),
+    )
+    .unwrap();
+
+    // 3. Simulate file encoding (write) and decoding (read)
+    let out = write_and_read(&file);
+    let layer_ref = out.layer_ref(0).unwrap();
+
+    // 4. Retrieve the linked cel at frame 1 and validate that custom properties are intact
+    let cel1 = out.cel(layer_ref, 1).unwrap();
+
+    // Ensure properties are no longer overwritten by hardcoded defaults (255 and 0)
+    assert_eq!(cel1.opacity, 180);
+    assert_eq!(cel1.z_index, 3);
+
+    // Validate the underlying CelKind::Linked variants
+    match &cel1.kind {
+        CelKind::Linked { source_frame, x, y } => {
+            assert_eq!(*source_frame, 0);
+            assert_eq!(*x, 15);
+            assert_eq!(*y, -5);
+        }
+        other => panic!("expected CelKind::Linked, got {:?}", other),
+    }
+
+    // Validate metadata chunks
+    let user_data = cel1
+        .user_data
+        .as_ref()
+        .expect("UserData should be preserved");
+    assert_eq!(user_data.text.as_deref(), Some("Linked Custom Text"));
+
+    let extra = cel1.extra.as_ref().expect("CelExtra should be preserved");
+    assert_eq!(extra.precise_x, 10);
+    assert_eq!(extra.precise_y, 20);
+}
+
+#[test]
 fn tags_with_directions() {
     let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
     file.add_layer("Layer");
@@ -121,7 +192,8 @@ fn tags_with_directions() {
     file.add_frame(100);
 
     file.add_tag("idle", 0..=0, LoopDirection::Forward).unwrap();
-    file.add_tag_with("walk", 1..=2, LoopDirection::PingPong, 3).unwrap();
+    file.add_tag_with("walk", 1..=2, LoopDirection::PingPong, 3)
+        .unwrap();
 
     let out = write_and_read(&file);
     assert_eq!(out.tags().len(), 2);
@@ -144,9 +216,27 @@ fn indexed_mode_with_palette() {
     let mut file = AsepriteFile::new(2, 2, ColorMode::Indexed);
     file.set_transparent_index(0);
     let palette = vec![
-        Color { r: 0, g: 0, b: 0, a: 0, name: None },
-        Color { r: 255, g: 0, b: 0, a: 255, name: None },
-        Color { r: 0, g: 255, b: 0, a: 255, name: None },
+        Color {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0,
+            name: None,
+        },
+        Color {
+            r: 255,
+            g: 0,
+            b: 0,
+            a: 255,
+            name: None,
+        },
+        Color {
+            r: 0,
+            g: 255,
+            b: 0,
+            a: 255,
+            name: None,
+        },
     ];
     file.set_palette(&palette).unwrap();
 
@@ -159,9 +249,36 @@ fn indexed_mode_with_palette() {
     assert_eq!(out.color_mode(), ColorMode::Indexed);
     assert_eq!(out.transparent_index(), 0);
     assert_eq!(out.palette().len(), 3);
-    assert_eq!(out.palette()[0], Color { r: 0, g: 0, b: 0, a: 0, name: None });
-    assert_eq!(out.palette()[1], Color { r: 255, g: 0, b: 0, a: 255, name: None });
-    assert_eq!(out.palette()[2], Color { r: 0, g: 255, b: 0, a: 255, name: None });
+    assert_eq!(
+        out.palette()[0],
+        Color {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0,
+            name: None
+        }
+    );
+    assert_eq!(
+        out.palette()[1],
+        Color {
+            r: 255,
+            g: 0,
+            b: 0,
+            a: 255,
+            name: None
+        }
+    );
+    assert_eq!(
+        out.palette()[2],
+        Color {
+            r: 0,
+            g: 255,
+            b: 0,
+            a: 255,
+            name: None
+        }
+    );
 }
 
 #[test]
@@ -170,7 +287,13 @@ fn grayscale_mode() {
     let layer = file.add_layer("Layer");
     file.add_frame(100);
     // Grayscale: 2 bytes per pixel (gray + alpha)
-    let pixels = Pixels::new(vec![128, 255, 64, 255, 0, 255, 200, 128], 2, 2, ColorMode::Grayscale).unwrap();
+    let pixels = Pixels::new(
+        vec![128, 255, 64, 255, 0, 255, 200, 128],
+        2,
+        2,
+        ColorMode::Grayscale,
+    )
+    .unwrap();
     file.set_cel(layer, 0, pixels, 0, 0).unwrap();
 
     let out = write_and_read(&file);
@@ -191,13 +314,18 @@ fn cel_options() {
     let layer = file.add_layer("Layer");
     file.add_frame(100);
     let pixels = Pixels::new(vec![0u8; 2 * 2 * 4], 2, 2, ColorMode::Rgba).unwrap();
-    file.set_cel_with(layer, 0, CelOptions {
-        pixels,
-        x: 5,
-        y: -3,
-        opacity: 128,
-        z_index: 2,
-    }).unwrap();
+    file.set_cel_with(
+        layer,
+        0,
+        CelOptions {
+            pixels,
+            x: 5,
+            y: -3,
+            opacity: 128,
+            z_index: 2,
+        },
+    )
+    .unwrap();
 
     let out = write_and_read(&file);
     let layer_ref = out.layer_ref(0).unwrap();
@@ -216,12 +344,15 @@ fn cel_options() {
 #[test]
 fn layer_options() {
     let mut file = AsepriteFile::new(4, 4, ColorMode::Rgba);
-    file.add_layer_with("Hidden", LayerOptions {
-        visible: false,
-        opacity: 128,
-        blend_mode: BlendMode::Multiply,
-        ..LayerOptions::default()
-    });
+    file.add_layer_with(
+        "Hidden",
+        LayerOptions {
+            visible: false,
+            opacity: 128,
+            blend_mode: BlendMode::Multiply,
+            ..LayerOptions::default()
+        },
+    );
     file.add_frame(100);
 
     let out = write_and_read(&file);
@@ -291,7 +422,13 @@ fn negative_cel_offset() {
 fn max_palette_size() {
     let mut file = AsepriteFile::new(1, 1, ColorMode::Indexed);
     let palette: Vec<Color> = (0..=255u8)
-        .map(|i| Color { r: i, g: i, b: i, a: 255, name: None })
+        .map(|i| Color {
+            r: i,
+            g: i,
+            b: i,
+            a: 255,
+            name: None,
+        })
         .collect();
     assert_eq!(palette.len(), 256);
     file.set_palette(&palette).unwrap();
@@ -327,7 +464,10 @@ fn zero_duration_frame() {
 fn pixels_rejects_wrong_buffer_size() {
     let result = Pixels::new(vec![0u8; 10], 4, 4, ColorMode::Rgba);
     match result {
-        Err(AsepriteError::PixelSizeMismatch { expected: 64, actual: 10 }) => {}
+        Err(AsepriteError::PixelSizeMismatch {
+            expected: 64,
+            actual: 10,
+        }) => {}
         other => panic!("expected PixelSizeMismatch(64, 10), got {:?}", other),
     }
 }
@@ -350,11 +490,21 @@ fn frame_out_of_bounds() {
 fn palette_too_large() {
     let mut file = AsepriteFile::new(1, 1, ColorMode::Indexed);
     let palette: Vec<Color> = (0..257)
-        .map(|_| Color { r: 0, g: 0, b: 0, a: 255, name: None })
+        .map(|_| Color {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 255,
+            name: None,
+        })
         .collect();
     let result = file.set_palette(&palette);
     match result {
-        Err(AsepriteError::FormatLimitExceeded { field: "palette", value: 257, max: 256 }) => {}
+        Err(AsepriteError::FormatLimitExceeded {
+            field: "palette",
+            value: 257,
+            max: 256,
+        }) => {}
         other => panic!("expected FormatLimitExceeded, got {:?}", other),
     }
 }
@@ -444,14 +594,20 @@ fn user_data_on_layer() {
     let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
     let layer = file.add_layer("MyLayer");
     file.add_frame(100);
-    file.set_layer_user_data(layer, UserData {
-        text: Some("hello".to_string()),
-        color: None,
-        properties: vec![],
-    });
+    file.set_layer_user_data(
+        layer,
+        UserData {
+            text: Some("hello".to_string()),
+            color: None,
+            properties: vec![],
+        },
+    );
 
     let out = write_and_read(&file);
-    let ud = out.layers()[0].user_data.as_ref().expect("layer should have user data");
+    let ud = out.layers()[0]
+        .user_data
+        .as_ref()
+        .expect("layer should have user data");
     assert_eq!(ud.text.as_deref(), Some("hello"));
 }
 
@@ -462,12 +618,21 @@ fn user_data_text_and_color() {
     file.add_frame(100);
     file.set_sprite_user_data(UserData {
         text: Some("sprite info".to_string()),
-        color: Some(Color { r: 255, g: 0, b: 0, a: 255, name: None }),
+        color: Some(Color {
+            r: 255,
+            g: 0,
+            b: 0,
+            a: 255,
+            name: None,
+        }),
         properties: vec![],
     });
 
     let out = write_and_read(&file);
-    let ud = out.sprite_user_data().as_ref().expect("sprite should have user data");
+    let ud = out
+        .sprite_user_data()
+        .as_ref()
+        .expect("sprite should have user data");
     assert_eq!(ud.text.as_deref(), Some("sprite info"));
     let c = ud.color.as_ref().expect("should have color");
     assert_eq!(c.r, 255);
@@ -485,7 +650,10 @@ fn user_data_with_properties() {
     let props = PropertiesMap {
         key: 0,
         entries: vec![
-            ("name".to_string(), PropertyValue::String("hero".to_string())),
+            (
+                "name".to_string(),
+                PropertyValue::String("hero".to_string()),
+            ),
             ("health".to_string(), PropertyValue::Int32(100)),
             ("alive".to_string(), PropertyValue::Bool(true)),
             ("speed".to_string(), PropertyValue::Float(3.5)),
@@ -502,15 +670,17 @@ fn user_data_with_properties() {
     });
 
     let out = write_and_read(&file);
-    let ud = out.sprite_user_data().as_ref().expect("sprite should have user data");
+    let ud = out
+        .sprite_user_data()
+        .as_ref()
+        .expect("sprite should have user data");
     assert_eq!(ud.properties.len(), 1);
     let map = &ud.properties[0];
     assert_eq!(map.key, 0);
     assert_eq!(map.entries.len(), 8);
 
-    let find = |name: &str| -> &PropertyValue {
-        &map.entries.iter().find(|(k, _)| k == name).unwrap().1
-    };
+    let find =
+        |name: &str| -> &PropertyValue { &map.entries.iter().find(|(k, _)| k == name).unwrap().1 };
     assert_eq!(*find("name"), PropertyValue::String("hero".to_string()));
     assert_eq!(*find("health"), PropertyValue::Int32(100));
     assert_eq!(*find("alive"), PropertyValue::Bool(true));
@@ -527,15 +697,23 @@ fn tag_user_data() {
     file.add_layer("Layer");
     file.add_frame(100);
     file.add_frame(100);
-    let tag_idx = file.add_tag("attack", 0..=1, LoopDirection::Forward).unwrap();
-    file.set_tag_user_data(tag_idx, UserData {
-        text: Some("melee".to_string()),
-        color: None,
-        properties: vec![],
-    });
+    let tag_idx = file
+        .add_tag("attack", 0..=1, LoopDirection::Forward)
+        .unwrap();
+    file.set_tag_user_data(
+        tag_idx,
+        UserData {
+            text: Some("melee".to_string()),
+            color: None,
+            properties: vec![],
+        },
+    );
 
     let out = write_and_read(&file);
-    let ud = out.tags()[0].user_data.as_ref().expect("tag should have user data");
+    let ud = out.tags()[0]
+        .user_data
+        .as_ref()
+        .expect("tag should have user data");
     assert_eq!(ud.text.as_deref(), Some("melee"));
 }
 
@@ -548,17 +726,30 @@ fn tag_user_data_sequential_with_gap() {
     file.add_frame(100);
     file.add_tag("idle", 0..=0, LoopDirection::Forward).unwrap();
     let tag1 = file.add_tag("run", 1..=2, LoopDirection::Forward).unwrap();
-    file.set_tag_user_data(tag1, UserData {
-        text: Some("running animation".to_string()),
-        color: None,
-        properties: vec![],
-    });
+    file.set_tag_user_data(
+        tag1,
+        UserData {
+            text: Some("running animation".to_string()),
+            color: None,
+            properties: vec![],
+        },
+    );
 
     let out = write_and_read(&file);
     assert_eq!(out.tags().len(), 2);
-    assert!(out.tags()[0].user_data.is_none() ||
-        out.tags()[0].user_data.as_ref().map_or(true, |ud| ud.text.is_none() && ud.color.is_none() && ud.properties.is_empty()));
-    let ud = out.tags()[1].user_data.as_ref().expect("tag 1 should have user data");
+    assert!(
+        out.tags()[0].user_data.is_none()
+            || out.tags()[0]
+                .user_data
+                .as_ref()
+                .map_or(true, |ud| ud.text.is_none()
+                    && ud.color.is_none()
+                    && ud.properties.is_empty())
+    );
+    let ud = out.tags()[1]
+        .user_data
+        .as_ref()
+        .expect("tag 1 should have user data");
     assert_eq!(ud.text.as_deref(), Some("running animation"));
 }
 
@@ -569,11 +760,21 @@ fn cel_user_data() {
     file.add_frame(100);
     let pixels = Pixels::new(vec![0u8; 4 * 4 * 4], 4, 4, ColorMode::Rgba).unwrap();
     file.set_cel(layer, 0, pixels, 0, 0).unwrap();
-    file.set_cel_user_data(layer, 0, UserData {
-        text: Some("cel note".to_string()),
-        color: Some(Color { r: 0, g: 255, b: 0, a: 255, name: None }),
-        properties: vec![],
-    });
+    file.set_cel_user_data(
+        layer,
+        0,
+        UserData {
+            text: Some("cel note".to_string()),
+            color: Some(Color {
+                r: 0,
+                g: 255,
+                b: 0,
+                a: 255,
+                name: None,
+            }),
+            properties: vec![],
+        },
+    );
 
     let out = write_and_read(&file);
     let layer_ref = out.layer_ref(0).unwrap();
@@ -597,8 +798,13 @@ fn basic_slice() {
     file.add_slice(Slice {
         name: "hitbox".to_string(),
         keys: vec![SliceKey {
-            frame: 0, x: 4, y: 4, width: 24, height: 12,
-            nine_patch: None, pivot: None,
+            frame: 0,
+            x: 4,
+            y: 4,
+            width: 24,
+            height: 12,
+            nine_patch: None,
+            pivot: None,
         }],
         has_nine_patch: false,
         has_pivot: false,
@@ -625,9 +831,16 @@ fn nine_patch_slice() {
     file.add_slice(Slice {
         name: "button".to_string(),
         keys: vec![SliceKey {
-            frame: 0, x: 0, y: 0, width: 32, height: 32,
+            frame: 0,
+            x: 0,
+            y: 0,
+            width: 32,
+            height: 32,
             nine_patch: Some(NinePatch {
-                center_x: 4, center_y: 4, center_width: 24, center_height: 24,
+                center_x: 4,
+                center_y: 4,
+                center_width: 24,
+                center_height: 24,
             }),
             pivot: None,
         }],
@@ -640,7 +853,10 @@ fn nine_patch_slice() {
     assert_eq!(out.slices().len(), 1);
     let s = &out.slices()[0];
     assert!(s.has_nine_patch);
-    let np = s.keys[0].nine_patch.as_ref().expect("should have nine patch");
+    let np = s.keys[0]
+        .nine_patch
+        .as_ref()
+        .expect("should have nine patch");
     assert_eq!(np.center_x, 4);
     assert_eq!(np.center_width, 24);
 }
@@ -655,12 +871,22 @@ fn animated_slice_with_pivot() {
         name: "weapon".to_string(),
         keys: vec![
             SliceKey {
-                frame: 0, x: 2, y: 3, width: 16, height: 16,
-                nine_patch: None, pivot: Some((8, 12)),
+                frame: 0,
+                x: 2,
+                y: 3,
+                width: 16,
+                height: 16,
+                nine_patch: None,
+                pivot: Some((8, 12)),
             },
             SliceKey {
-                frame: 1, x: 4, y: 5, width: 20, height: 20,
-                nine_patch: None, pivot: Some((10, 15)),
+                frame: 1,
+                x: 4,
+                y: 5,
+                width: 20,
+                height: 20,
+                nine_patch: None,
+                pivot: Some((10, 15)),
             },
         ],
         has_nine_patch: false,
@@ -691,8 +917,13 @@ fn slice_with_user_data() {
     file.add_slice(Slice {
         name: "region".to_string(),
         keys: vec![SliceKey {
-            frame: 0, x: 0, y: 0, width: 32, height: 32,
-            nine_patch: None, pivot: None,
+            frame: 0,
+            x: 0,
+            y: 0,
+            width: 32,
+            height: 32,
+            nine_patch: None,
+            pivot: None,
         }],
         has_nine_patch: false,
         has_pivot: false,
@@ -705,7 +936,10 @@ fn slice_with_user_data() {
 
     let out = write_and_read(&file);
     assert_eq!(out.slices().len(), 1);
-    let ud = out.slices()[0].user_data.as_ref().expect("slice should have user data");
+    let ud = out.slices()[0]
+        .user_data
+        .as_ref()
+        .expect("slice should have user data");
     assert_eq!(ud.text.as_deref(), Some("spawn point"));
 }
 
@@ -718,12 +952,16 @@ fn cel_extra_round_trip() {
     file.add_frame(100);
     let pixels = Pixels::new(vec![0u8; 4 * 4 * 4], 4, 4, ColorMode::Rgba).unwrap();
     file.set_cel(layer, 0, pixels, 0, 0).unwrap();
-    file.set_cel_extra(layer, 0, CelExtra {
-        precise_x: 65536,
-        precise_y: 131072,
-        width: 262144,
-        height: 524288,
-    });
+    file.set_cel_extra(
+        layer,
+        0,
+        CelExtra {
+            precise_x: 65536,
+            precise_y: 131072,
+            width: 262144,
+            height: 524288,
+        },
+    );
 
     let out = write_and_read(&file);
     let layer_ref = out.layer_ref(0).unwrap();
@@ -742,9 +980,27 @@ fn palette_entry_names() {
     let mut file = AsepriteFile::new(1, 1, ColorMode::Indexed);
     file.set_transparent_index(0);
     let palette = vec![
-        Color { r: 0, g: 0, b: 0, a: 255, name: Some("Black".to_string()) },
-        Color { r: 128, g: 128, b: 128, a: 255, name: None },
-        Color { r: 0, g: 255, b: 0, a: 255, name: Some("Green".to_string()) },
+        Color {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 255,
+            name: Some("Black".to_string()),
+        },
+        Color {
+            r: 128,
+            g: 128,
+            b: 128,
+            a: 255,
+            name: None,
+        },
+        Color {
+            r: 0,
+            g: 255,
+            b: 0,
+            a: 255,
+            name: Some("Green".to_string()),
+        },
     ];
     file.set_palette(&palette).unwrap();
     let layer = file.add_layer("Layer");
@@ -781,7 +1037,10 @@ fn embedded_tileset() {
         tile_width: 8,
         tile_height: 8,
         base_index: 1,
-        data: TilesetData::Embedded { pixels: pixels.clone(), original_compressed: None },
+        data: TilesetData::Embedded {
+            pixels: pixels.clone(),
+            original_compressed: None,
+        },
         user_data: None,
         tile_user_data: vec![],
     });
@@ -794,7 +1053,9 @@ fn embedded_tileset() {
     assert_eq!(ts.tile_height, 8);
     assert_eq!(ts.name, "terrain");
     match &ts.data {
-        TilesetData::Embedded { pixels: out_pixels, .. } => {
+        TilesetData::Embedded {
+            pixels: out_pixels, ..
+        } => {
             assert_eq!(out_pixels.len(), pixels.len());
             assert_eq!(*out_pixels, pixels);
         }
@@ -822,7 +1083,10 @@ fn external_tileset() {
         tile_width: 16,
         tile_height: 16,
         base_index: 1,
-        data: TilesetData::External { external_file_id: 1, tileset_id_in_external: 42 },
+        data: TilesetData::External {
+            external_file_id: 1,
+            tileset_id_in_external: 42,
+        },
         user_data: None,
         tile_user_data: vec![],
     });
@@ -832,7 +1096,10 @@ fn external_tileset() {
     let ts = &out.tilesets()[0];
     assert_eq!(ts.name, "ext_terrain");
     match &ts.data {
-        TilesetData::External { external_file_id, tileset_id_in_external } => {
+        TilesetData::External {
+            external_file_id,
+            tileset_id_in_external,
+        } => {
             assert_eq!(*external_file_id, 1);
             assert_eq!(*tileset_id_in_external, 42);
         }
@@ -859,7 +1126,10 @@ fn tilemap_cel() {
         tile_width: 8,
         tile_height: 8,
         base_index: 1,
-        data: TilesetData::Embedded { pixels: tile_pixels, original_compressed: None },
+        data: TilesetData::Embedded {
+            pixels: tile_pixels,
+            original_compressed: None,
+        },
         user_data: None,
         tile_user_data: vec![],
     });
@@ -869,13 +1139,19 @@ fn tilemap_cel() {
 
     // 4x4 tilemap grid
     let tiles: Vec<u32> = (0..16).collect();
-    file.set_tilemap_cel(layer, 0, tiles.clone(), 4, 4, 0, 0).unwrap();
+    file.set_tilemap_cel(layer, 0, tiles.clone(), 4, 4, 0, 0)
+        .unwrap();
 
     let out = write_and_read(&file);
     let layer_ref = out.layer_ref(0).unwrap();
     let cel = out.cel(layer_ref, 0).unwrap();
     match &cel.kind {
-        CelKind::Tilemap { width, height, tiles: out_tiles, .. } => {
+        CelKind::Tilemap {
+            width,
+            height,
+            tiles: out_tiles,
+            ..
+        } => {
             assert_eq!(*width, 4);
             assert_eq!(*height, 4);
             assert_eq!(out_tiles.len(), 16);
@@ -897,7 +1173,10 @@ fn tilemap_layer_kind() {
         tile_width: 8,
         tile_height: 8,
         base_index: 1,
-        data: TilesetData::Embedded { pixels: vec![0u8; 8 * 8 * 4], original_compressed: None },
+        data: TilesetData::Embedded {
+            pixels: vec![0u8; 8 * 8 * 4],
+            original_compressed: None,
+        },
         user_data: None,
         tile_user_data: vec![],
     });
@@ -930,7 +1209,10 @@ fn tileset_user_data() {
         tile_width: 8,
         tile_height: 8,
         base_index: 1,
-        data: TilesetData::Embedded { pixels: vec![0u8; 8 * 8 * 4], original_compressed: None },
+        data: TilesetData::Embedded {
+            pixels: vec![0u8; 8 * 8 * 4],
+            original_compressed: None,
+        },
         user_data: Some(UserData {
             text: Some("ground tiles".to_string()),
             color: None,
@@ -941,7 +1223,10 @@ fn tileset_user_data() {
 
     let out = write_and_read(&file);
     assert_eq!(out.tilesets().len(), 1);
-    let ud = out.tilesets()[0].user_data.as_ref().expect("tileset should have user data");
+    let ud = out.tilesets()[0]
+        .user_data
+        .as_ref()
+        .expect("tileset should have user data");
     assert_eq!(ud.text.as_deref(), Some("ground tiles"));
 }
 
@@ -970,7 +1255,10 @@ fn external_files_round_trip() {
     assert_eq!(out.external_files()[0].name, "shared_palette.aseprite");
 
     assert_eq!(out.external_files()[1].id, 2);
-    assert_eq!(out.external_files()[1].file_type, ExternalFileType::ExtensionProps);
+    assert_eq!(
+        out.external_files()[1].file_type,
+        ExternalFileType::ExtensionProps
+    );
     assert_eq!(out.external_files()[1].name, "my_extension");
 }
 
@@ -990,9 +1278,15 @@ fn legacy_old_palette_0004_round_trip() {
     let pixels = Pixels::new(vec![0u8; 4], 2, 2, ColorMode::Indexed).unwrap();
     file.set_cel(layer, 0, pixels, 0, 0).unwrap();
 
-    let colors: Vec<Color> = (0..4).map(|i| Color {
-        r: i * 60, g: i * 40, b: i * 20, a: 255, name: None,
-    }).collect();
+    let colors: Vec<Color> = (0..4)
+        .map(|i| Color {
+            r: i * 60,
+            g: i * 40,
+            b: i * 20,
+            a: 255,
+            name: None,
+        })
+        .collect();
     file.set_palette(&colors).unwrap();
 
     let out = write_and_read(&file);
@@ -1004,7 +1298,10 @@ fn legacy_old_palette_0004_round_trip() {
 #[test]
 fn legacy_mask_struct_fields() {
     let mask = LegacyMask {
-        x: 10, y: 20, width: 32, height: 16,
+        x: 10,
+        y: 20,
+        width: 32,
+        height: 16,
         name: "test mask".to_string(),
         bitmap: vec![0xFF; 4 * 16],
     };
@@ -1021,7 +1318,10 @@ fn legacy_mask_struct_fields() {
 #[test]
 fn rejects_bad_magic() {
     let data = vec![0u8; 128];
-    assert!(matches!(AsepriteFile::from_reader(&data[..]), Err(AsepriteError::InvalidMagic)));
+    assert!(matches!(
+        AsepriteFile::from_reader(&data[..]),
+        Err(AsepriteError::InvalidMagic)
+    ));
 }
 
 #[test]
@@ -1036,9 +1336,16 @@ fn error_display() {
     assert!(format!("{e}").contains("magic"));
     let e = AsepriteError::FrameOutOfBounds(5);
     assert!(format!("{e}").contains("5"));
-    let e = AsepriteError::PixelSizeMismatch { expected: 64, actual: 10 };
+    let e = AsepriteError::PixelSizeMismatch {
+        expected: 64,
+        actual: 10,
+    };
     assert!(format!("{e}").contains("64"));
-    let e = AsepriteError::FormatLimitExceeded { field: "palette", value: 300, max: 256 };
+    let e = AsepriteError::FormatLimitExceeded {
+        field: "palette",
+        value: 300,
+        max: 256,
+    };
     assert!(format!("{e}").contains("palette"));
 }
 
@@ -1069,7 +1376,14 @@ fn group_ref_and_layer_ref() {
 #[test]
 fn add_group_with_options() {
     let mut file = AsepriteFile::new(4, 4, ColorMode::Rgba);
-    let group = file.add_group_with("G", LayerOptions { opacity: 128, visible: false, ..Default::default() });
+    let group = file.add_group_with(
+        "G",
+        LayerOptions {
+            opacity: 128,
+            visible: false,
+            ..Default::default()
+        },
+    );
     let _child = file.add_layer_in("Child", group);
     file.add_frame(100);
 
@@ -1083,7 +1397,14 @@ fn add_group_with_options() {
 fn add_layer_in_with_options() {
     let mut file = AsepriteFile::new(4, 4, ColorMode::Rgba);
     let group = file.add_group("G");
-    let _child = file.add_layer_in_with("Child", group, LayerOptions { opacity: 64, ..Default::default() });
+    let _child = file.add_layer_in_with(
+        "Child",
+        group,
+        LayerOptions {
+            opacity: 64,
+            ..Default::default()
+        },
+    );
     file.add_frame(100);
 
     let read = write_and_read(&file);
@@ -1094,7 +1415,14 @@ fn add_layer_in_with_options() {
 fn add_group_in_with_options() {
     let mut file = AsepriteFile::new(4, 4, ColorMode::Rgba);
     let outer = file.add_group("Outer");
-    let inner = file.add_group_in_with("Inner", outer, LayerOptions { visible: false, ..Default::default() });
+    let inner = file.add_group_in_with(
+        "Inner",
+        outer,
+        LayerOptions {
+            visible: false,
+            ..Default::default()
+        },
+    );
     let _leaf = file.add_layer_in("Leaf", inner);
     file.add_frame(100);
 
@@ -1121,12 +1449,21 @@ fn set_raw_cel() {
 fn set_group_user_data() {
     let mut file = AsepriteFile::new(4, 4, ColorMode::Rgba);
     let group = file.add_group("G");
-    file.set_group_user_data(group, UserData { text: Some("group note".into()), ..Default::default() });
+    file.set_group_user_data(
+        group,
+        UserData {
+            text: Some("group note".into()),
+            ..Default::default()
+        },
+    );
     file.add_layer_in("Child", group);
     file.add_frame(100);
 
     let read = write_and_read(&file);
-    assert_eq!(read.layers()[0].user_data.as_ref().unwrap().text.as_deref(), Some("group note"));
+    assert_eq!(
+        read.layers()[0].user_data.as_ref().unwrap().text.as_deref(),
+        Some("group note")
+    );
 }
 
 // --- Structural assertions on existing fixtures ---
@@ -1163,7 +1500,11 @@ fn parse_2x2tilemap_structure() {
     let data = std::fs::read("tests/fixtures/2x2tilemap2x2tile.aseprite").unwrap();
     let file = AsepriteFile::from_reader(&data[..]).unwrap();
     assert!(!file.tilesets().is_empty());
-    assert!(file.layers().iter().any(|l| matches!(l.kind, LayerKind::Tilemap { .. })));
+    assert!(
+        file.layers()
+            .iter()
+            .any(|l| matches!(l.kind, LayerKind::Tilemap { .. }))
+    );
 }
 
 #[test]
@@ -1179,14 +1520,67 @@ fn resolve_cel_follows_link() {
 
     // resolve_cel on a normal cel returns the cel itself
     let cel0 = file.resolve_cel(layer, 0).unwrap();
-    assert!(matches!(&cel0.kind, CelKind::Compressed { x: 5, y: 10, .. }));
+    assert!(matches!(
+        &cel0.kind,
+        CelKind::Compressed { x: 5, y: 10, .. }
+    ));
 
     // resolve_cel on a linked cel returns the source cel
     let cel1 = file.resolve_cel(layer, 1).unwrap();
-    assert!(matches!(&cel1.kind, CelKind::Compressed { x: 5, y: 10, .. }));
+    assert!(matches!(
+        &cel1.kind,
+        CelKind::Compressed { x: 5, y: 10, .. }
+    ));
 
     // resolve_cel on a missing cel returns None
     assert!(file.resolve_cel(layer, 99).is_none());
+}
+
+#[test]
+fn resolve_cel_with_props_follows_link() {
+    let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
+    let layer = file.add_layer("Layer");
+    file.add_frame(100);
+    file.add_frame(100);
+
+    // Set source cel at frame 0 with bounding positions (5, 10)
+    let pixels = Pixels::new(vec![42u8; 2 * 2 * 4], 2, 2, ColorMode::Rgba).unwrap();
+    file.set_cel(layer, 0, pixels, 5, 10).unwrap();
+
+    // Set linked cel at frame 1 with its own unique spatial offset (12, 12)
+    file.set_linked_cel_with_props(
+        layer,
+        1,
+        0,
+        12,
+        12,
+        255,
+        0,
+        None,
+        None,
+    ).unwrap();
+
+    // 1. resolve_cel on the linked cel (frame 1) MUST return the source cell chunk (frame 0)
+    let resolved_cel = file.resolve_cel(layer, 1).unwrap();
+    
+    // The resolved cel layout properties should reflect the initial bounds from frame 0
+    match &resolved_cel.kind {
+        CelKind::Compressed { x, y, .. } => {
+            assert_eq!(*x, 5);
+            assert_eq!(*y, 10);
+        }
+        CelKind::Raw { x, y, .. } => {
+            assert_eq!(*x, 5);
+            assert_eq!(*y, 10);
+        }
+        CelKind::Linked { .. } => {
+            panic!("resolve_cel failed! It returned a Linked variant instead of resolving the source target.");
+        }
+        _ => {
+            // 🟢 Catch-all arm handles any other potential variants (e.g., Tilemap, Empty, etc.)
+            panic!("expected Compressed or Raw cel, got an unknown variant");
+        }
+    }
 }
 
 #[test]

@@ -49,7 +49,9 @@ pub enum LayerKind {
     Normal,
     Group,
     /// A tilemap layer referencing a tileset by index.
-    Tilemap { tileset_index: u32 },
+    Tilemap {
+        tileset_index: u32,
+    },
 }
 
 /// Layer blend mode, matching Aseprite's blend mode list.
@@ -80,24 +82,49 @@ pub enum BlendMode {
 impl BlendMode {
     pub(crate) fn from_u16(v: u16) -> Self {
         match v {
-            0 => Self::Normal, 1 => Self::Multiply, 2 => Self::Screen,
-            3 => Self::Overlay, 4 => Self::Darken, 5 => Self::Lighten,
-            6 => Self::ColorDodge, 7 => Self::ColorBurn, 8 => Self::HardLight,
-            9 => Self::SoftLight, 10 => Self::Difference, 11 => Self::Exclusion,
-            12 => Self::Hue, 13 => Self::Saturation, 14 => Self::Color,
-            15 => Self::Luminosity, 16 => Self::Addition, 17 => Self::Subtract,
-            18 => Self::Divide, _ => Self::Normal,
+            0 => Self::Normal,
+            1 => Self::Multiply,
+            2 => Self::Screen,
+            3 => Self::Overlay,
+            4 => Self::Darken,
+            5 => Self::Lighten,
+            6 => Self::ColorDodge,
+            7 => Self::ColorBurn,
+            8 => Self::HardLight,
+            9 => Self::SoftLight,
+            10 => Self::Difference,
+            11 => Self::Exclusion,
+            12 => Self::Hue,
+            13 => Self::Saturation,
+            14 => Self::Color,
+            15 => Self::Luminosity,
+            16 => Self::Addition,
+            17 => Self::Subtract,
+            18 => Self::Divide,
+            _ => Self::Normal,
         }
     }
 
     pub(crate) fn to_u16(self) -> u16 {
         match self {
-            Self::Normal => 0, Self::Multiply => 1, Self::Screen => 2,
-            Self::Overlay => 3, Self::Darken => 4, Self::Lighten => 5,
-            Self::ColorDodge => 6, Self::ColorBurn => 7, Self::HardLight => 8,
-            Self::SoftLight => 9, Self::Difference => 10, Self::Exclusion => 11,
-            Self::Hue => 12, Self::Saturation => 13, Self::Color => 14,
-            Self::Luminosity => 15, Self::Addition => 16, Self::Subtract => 17,
+            Self::Normal => 0,
+            Self::Multiply => 1,
+            Self::Screen => 2,
+            Self::Overlay => 3,
+            Self::Darken => 4,
+            Self::Lighten => 5,
+            Self::ColorDodge => 6,
+            Self::ColorBurn => 7,
+            Self::HardLight => 8,
+            Self::SoftLight => 9,
+            Self::Difference => 10,
+            Self::Exclusion => 11,
+            Self::Hue => 12,
+            Self::Saturation => 13,
+            Self::Color => 14,
+            Self::Luminosity => 15,
+            Self::Addition => 16,
+            Self::Subtract => 17,
             Self::Divide => 18,
         }
     }
@@ -116,16 +143,20 @@ pub enum LoopDirection {
 impl LoopDirection {
     pub(crate) fn from_u8(v: u8) -> Self {
         match v {
-            0 => Self::Forward, 1 => Self::Reverse,
-            2 => Self::PingPong, 3 => Self::PingPongReverse,
+            0 => Self::Forward,
+            1 => Self::Reverse,
+            2 => Self::PingPong,
+            3 => Self::PingPongReverse,
             _ => Self::Forward,
         }
     }
 
     pub(crate) fn to_u8(self) -> u8 {
         match self {
-            Self::Forward => 0, Self::Reverse => 1,
-            Self::PingPong => 2, Self::PingPongReverse => 3,
+            Self::Forward => 0,
+            Self::Reverse => 1,
+            Self::PingPong => 2,
+            Self::PingPongReverse => 3,
         }
     }
 }
@@ -135,8 +166,15 @@ impl LoopDirection {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ColorProfile {
     None,
-    SRgb { flags: u16, gamma: u32 },
-    Icc { flags: u16, gamma: u32, data: Vec<u8> },
+    SRgb {
+        flags: u16,
+        gamma: u32,
+    },
+    Icc {
+        flags: u16,
+        gamma: u32,
+        data: Vec<u8>,
+    },
 }
 
 // --- Handles ---
@@ -151,12 +189,16 @@ pub struct GroupRef(pub(crate) usize);
 
 impl LayerRef {
     /// Returns the underlying layer index.
-    pub fn index(&self) -> usize { self.0 }
+    pub fn index(&self) -> usize {
+        self.0
+    }
 }
 
 impl GroupRef {
     /// Returns the underlying layer index.
-    pub fn index(&self) -> usize { self.0 }
+    pub fn index(&self) -> usize {
+        self.0
+    }
 }
 
 // --- Data structs ---
@@ -171,12 +213,24 @@ pub struct Pixels {
 
 impl Pixels {
     /// Creates a new pixel buffer, validating that `data.len()` matches `width * height * color_mode.bytes_per_pixel()`.
-    pub fn new(data: Vec<u8>, width: u16, height: u16, color_mode: ColorMode) -> Result<Self, AsepriteError> {
+    pub fn new(
+        data: Vec<u8>,
+        width: u16,
+        height: u16,
+        color_mode: ColorMode,
+    ) -> Result<Self, AsepriteError> {
         let expected = width as usize * height as usize * color_mode.bytes_per_pixel();
         if data.len() != expected {
-            return Err(AsepriteError::PixelSizeMismatch { expected, actual: data.len() });
+            return Err(AsepriteError::PixelSizeMismatch {
+                expected,
+                actual: data.len(),
+            });
         }
-        Ok(Self { data, width, height })
+        Ok(Self {
+            data,
+            width,
+            height,
+        })
     }
 }
 
@@ -201,7 +255,12 @@ pub struct GridInfo {
 
 impl Default for GridInfo {
     fn default() -> Self {
-        Self { x: 0, y: 0, width: 16, height: 16 }
+        Self {
+            x: 0,
+            y: 0,
+            width: 16,
+            height: 16,
+        }
     }
 }
 
@@ -256,10 +315,15 @@ pub struct LayerOptions {
 impl Default for LayerOptions {
     fn default() -> Self {
         Self {
-            opacity: 255, blend_mode: BlendMode::Normal,
-            visible: true, editable: true, lock_movement: false,
-            background: false, collapsed: false,
-            prefer_linked_cels: false, reference_layer: false,
+            opacity: 255,
+            blend_mode: BlendMode::Normal,
+            visible: true,
+            editable: true,
+            lock_movement: false,
+            background: false,
+            collapsed: false,
+            prefer_linked_cels: false,
+            reference_layer: false,
         }
     }
 }
@@ -304,7 +368,12 @@ pub enum CelKind {
     /// Uncompressed pixel data.
     Raw { pixels: Pixels, x: i16, y: i16 },
     /// Zlib-compressed pixel data. `original_compressed` preserves the original bytes for round-trip fidelity; `None` for programmatically created cels.
-    Compressed { pixels: Pixels, x: i16, y: i16, original_compressed: Option<Vec<u8>> },
+    Compressed {
+        pixels: Pixels,
+        x: i16,
+        y: i16,
+        original_compressed: Option<Vec<u8>>,
+    },
     /// References another frame's cel on the same layer. Use [`AsepriteFile::resolve_cel`] to follow the link.
     Linked { source_frame: usize, x: i16, y: i16 },
     /// Tilemap data referencing tiles by ID.
@@ -335,8 +404,15 @@ pub struct CelOptions {
 impl Default for CelOptions {
     fn default() -> Self {
         Self {
-            pixels: Pixels { data: vec![], width: 0, height: 0 },
-            x: 0, y: 0, opacity: 255, z_index: 0,
+            pixels: Pixels {
+                data: vec![],
+                width: 0,
+                height: 0,
+            },
+            x: 0,
+            y: 0,
+            opacity: 255,
+            z_index: 0,
         }
     }
 }
@@ -362,11 +438,24 @@ pub struct PropertiesMap {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum PropertyValue {
-    Bool(bool), Int8(i8), UInt8(u8), Int16(i16), UInt16(u16),
-    Int32(i32), UInt32(u32), Int64(i64), UInt64(u64),
-    Fixed(u32), Float(f32), Double(f64), String(String),
-    Point(i32, i32), Size(i32, i32), Rect(i32, i32, i32, i32),
-    Vector(Vec<PropertyValue>), Properties(Vec<(String, PropertyValue)>),
+    Bool(bool),
+    Int8(i8),
+    UInt8(u8),
+    Int16(i16),
+    UInt16(u16),
+    Int32(i32),
+    UInt32(u32),
+    Int64(i64),
+    UInt64(u64),
+    Fixed(u32),
+    Float(f32),
+    Double(f64),
+    String(String),
+    Point(i32, i32),
+    Size(i32, i32),
+    Rect(i32, i32, i32, i32),
+    Vector(Vec<PropertyValue>),
+    Properties(Vec<(String, PropertyValue)>),
     Uuid([u8; 16]),
 }
 
@@ -385,8 +474,11 @@ pub struct Slice {
 /// A slice's bounds at a specific frame.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SliceKey {
-    pub frame: u32, pub x: i32, pub y: i32,
-    pub width: u32, pub height: u32,
+    pub frame: u32,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
     pub nine_patch: Option<NinePatch>,
     pub pivot: Option<(i32, i32)>,
 }
@@ -394,8 +486,10 @@ pub struct SliceKey {
 /// Nine-patch (9-slice) center region within a slice.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NinePatch {
-    pub center_x: i32, pub center_y: i32,
-    pub center_width: u32, pub center_height: u32,
+    pub center_x: i32,
+    pub center_y: i32,
+    pub center_width: u32,
+    pub center_height: u32,
 }
 
 // --- Cel Extra ---
@@ -403,8 +497,10 @@ pub struct NinePatch {
 /// Extra precision bounds for a cel.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CelExtra {
-    pub precise_x: u32, pub precise_y: u32,
-    pub width: u32, pub height: u32,
+    pub precise_x: u32,
+    pub precise_y: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 // --- Tileset ---
@@ -415,11 +511,17 @@ pub struct TilesetFlags(pub u32);
 
 impl TilesetFlags {
     /// Returns whether the tileset references an external file.
-    pub fn has_external_link(self) -> bool { self.0 & 1 != 0 }
+    pub fn has_external_link(self) -> bool {
+        self.0 & 1 != 0
+    }
     /// Returns whether the tileset has embedded tile pixel data.
-    pub fn has_embedded_tiles(self) -> bool { self.0 & 2 != 0 }
+    pub fn has_embedded_tiles(self) -> bool {
+        self.0 & 2 != 0
+    }
     /// Returns whether tile ID 0 represents an empty tile.
-    pub fn empty_tile_is_zero(self) -> bool { self.0 & 4 != 0 }
+    pub fn empty_tile_is_zero(self) -> bool {
+        self.0 & 4 != 0
+    }
 }
 
 /// A tileset definition.
@@ -441,8 +543,14 @@ pub struct Tileset {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum TilesetData {
-    Embedded { pixels: Vec<u8>, original_compressed: Option<Vec<u8>> },
-    External { external_file_id: u32, tileset_id_in_external: u32 },
+    Embedded {
+        pixels: Vec<u8>,
+        original_compressed: Option<Vec<u8>>,
+    },
+    External {
+        external_file_id: u32,
+        tileset_id_in_external: u32,
+    },
     Empty,
 }
 
@@ -570,13 +678,21 @@ impl AsepriteFile {
     /// Creates an empty file with the given canvas dimensions and color mode.
     pub fn new(width: u16, height: u16, color_mode: ColorMode) -> Self {
         Self {
-            width, height, color_mode,
-            flags: 1, deprecated_speed: 0, num_colors: 0,
+            width,
+            height,
+            color_mode,
+            flags: 1,
+            deprecated_speed: 0,
+            num_colors: 0,
             transparent_index: 0,
-            pixel_ratio: (1, 1), grid: GridInfo::default(),
-            color_profile: None, palette: Vec::new(),
-            layers: Vec::new(), frames: Vec::new(),
-            tags: Vec::new(), slices: Vec::new(),
+            pixel_ratio: (1, 1),
+            grid: GridInfo::default(),
+            color_profile: None,
+            palette: Vec::new(),
+            layers: Vec::new(),
+            frames: Vec::new(),
+            tags: Vec::new(),
+            slices: Vec::new(),
             sprite_user_data: None,
             cels: BTreeMap::new(),
             tilesets: Vec::new(),
@@ -589,41 +705,79 @@ impl AsepriteFile {
 
     // --- Accessors ---
     /// Returns the canvas width in pixels.
-    pub fn width(&self) -> u16 { self.width }
+    pub fn width(&self) -> u16 {
+        self.width
+    }
     /// Returns the canvas height in pixels.
-    pub fn height(&self) -> u16 { self.height }
+    pub fn height(&self) -> u16 {
+        self.height
+    }
     /// Returns the color mode.
-    pub fn color_mode(&self) -> ColorMode { self.color_mode }
+    pub fn color_mode(&self) -> ColorMode {
+        self.color_mode
+    }
     /// Returns the raw header flags.
-    pub fn flags(&self) -> u32 { self.flags }
-    pub(crate) fn deprecated_speed(&self) -> u16 { self.deprecated_speed }
-    pub(crate) fn num_colors(&self) -> u16 { self.num_colors }
+    pub fn flags(&self) -> u32 {
+        self.flags
+    }
+    pub(crate) fn deprecated_speed(&self) -> u16 {
+        self.deprecated_speed
+    }
+    pub(crate) fn num_colors(&self) -> u16 {
+        self.num_colors
+    }
     /// Returns the pixel aspect ratio as (width, height).
-    pub fn pixel_ratio(&self) -> (u8, u8) { self.pixel_ratio }
+    pub fn pixel_ratio(&self) -> (u8, u8) {
+        self.pixel_ratio
+    }
     /// Returns the grid overlay settings.
-    pub fn grid(&self) -> &GridInfo { &self.grid }
+    pub fn grid(&self) -> &GridInfo {
+        &self.grid
+    }
     /// Returns the color profile, if set.
-    pub fn color_profile(&self) -> &Option<ColorProfile> { &self.color_profile }
+    pub fn color_profile(&self) -> &Option<ColorProfile> {
+        &self.color_profile
+    }
     /// Returns the color palette (empty if no palette chunk was present).
-    pub fn palette(&self) -> &[Color] { &self.palette }
+    pub fn palette(&self) -> &[Color] {
+        &self.palette
+    }
     /// Returns all layers in document order.
-    pub fn layers(&self) -> &[Layer] { &self.layers }
+    pub fn layers(&self) -> &[Layer] {
+        &self.layers
+    }
     /// Returns all frames.
-    pub fn frames(&self) -> &[Frame] { &self.frames }
+    pub fn frames(&self) -> &[Frame] {
+        &self.frames
+    }
     /// Returns all animation tags.
-    pub fn tags(&self) -> &[Tag] { &self.tags }
+    pub fn tags(&self) -> &[Tag] {
+        &self.tags
+    }
     /// Returns all slices.
-    pub fn slices(&self) -> &[Slice] { &self.slices }
+    pub fn slices(&self) -> &[Slice] {
+        &self.slices
+    }
     /// Returns the sprite-level user data, if set.
-    pub fn sprite_user_data(&self) -> &Option<UserData> { &self.sprite_user_data }
+    pub fn sprite_user_data(&self) -> &Option<UserData> {
+        &self.sprite_user_data
+    }
     /// Returns the transparent palette index (only meaningful for indexed color mode).
-    pub fn transparent_index(&self) -> u8 { self.transparent_index }
+    pub fn transparent_index(&self) -> u8 {
+        self.transparent_index
+    }
     /// Returns legacy mask chunks (deprecated in modern Aseprite, preserved for round-trip fidelity).
-    pub fn legacy_masks(&self) -> &[LegacyMask] { &self.legacy_masks }
+    pub fn legacy_masks(&self) -> &[LegacyMask] {
+        &self.legacy_masks
+    }
     /// Returns all tilesets.
-    pub fn tilesets(&self) -> &[Tileset] { &self.tilesets }
+    pub fn tilesets(&self) -> &[Tileset] {
+        &self.tilesets
+    }
     /// Returns all external file references.
-    pub fn external_files(&self) -> &[ExternalFile] { &self.external_files }
+    pub fn external_files(&self) -> &[ExternalFile] {
+        &self.external_files
+    }
 
     /// Returns the raw cel at the given layer and frame, or `None`. May return [`CelKind::Linked`]; use [`resolve_cel`](Self::resolve_cel) to follow links.
     pub fn cel(&self, layer: LayerRef, frame: usize) -> Option<&Cel> {
@@ -645,31 +799,45 @@ impl AsepriteFile {
     // --- Handle construction from parsed data ---
     /// Returns a [`LayerRef`] handle for the given index, or `None` if the index is out of bounds or points to a group.
     pub fn layer_ref(&self, index: usize) -> Option<LayerRef> {
-        self.layers.get(index).and_then(|l| {
-            match l.kind {
-                LayerKind::Normal | LayerKind::Tilemap { .. } => Some(LayerRef(index)),
-                LayerKind::Group => None,
-            }
+        self.layers.get(index).and_then(|l| match l.kind {
+            LayerKind::Normal | LayerKind::Tilemap { .. } => Some(LayerRef(index)),
+            LayerKind::Group => None,
         })
     }
 
     /// Returns a [`GroupRef`] handle for the given index, or `None` if the index is out of bounds or is not a group.
     pub fn group_ref(&self, index: usize) -> Option<GroupRef> {
         self.layers.get(index).and_then(|l| {
-            if l.kind == LayerKind::Group { Some(GroupRef(index)) } else { None }
+            if l.kind == LayerKind::Group {
+                Some(GroupRef(index))
+            } else {
+                None
+            }
         })
     }
 
     // --- Layers ---
-    fn push_layer(&mut self, name: &str, kind: LayerKind, parent: Option<usize>, opts: &LayerOptions) -> usize {
+    fn push_layer(
+        &mut self,
+        name: &str,
+        kind: LayerKind,
+        parent: Option<usize>,
+        opts: &LayerOptions,
+    ) -> usize {
         let index = self.layers.len();
         self.layers.push(Layer {
-            name: name.to_string(), kind, parent,
-            opacity: opts.opacity, blend_mode: opts.blend_mode,
-            visible: opts.visible, editable: opts.editable,
-            lock_movement: opts.lock_movement, background: opts.background,
+            name: name.to_string(),
+            kind,
+            parent,
+            opacity: opts.opacity,
+            blend_mode: opts.blend_mode,
+            visible: opts.visible,
+            editable: opts.editable,
+            lock_movement: opts.lock_movement,
+            background: opts.background,
             prefer_linked_cels: opts.prefer_linked_cels,
-            collapsed: opts.collapsed, reference_layer: opts.reference_layer,
+            collapsed: opts.collapsed,
+            reference_layer: opts.reference_layer,
             user_data: None,
         });
         index
@@ -693,18 +861,38 @@ impl AsepriteFile {
     }
     /// Adds a normal layer inside a group.
     pub fn add_layer_in(&mut self, name: &str, parent: GroupRef) -> LayerRef {
-        LayerRef(self.push_layer(name, LayerKind::Normal, Some(parent.0), &LayerOptions::default()))
+        LayerRef(self.push_layer(
+            name,
+            LayerKind::Normal,
+            Some(parent.0),
+            &LayerOptions::default(),
+        ))
     }
     /// Adds a normal layer inside a group with custom options.
-    pub fn add_layer_in_with(&mut self, name: &str, parent: GroupRef, opts: LayerOptions) -> LayerRef {
+    pub fn add_layer_in_with(
+        &mut self,
+        name: &str,
+        parent: GroupRef,
+        opts: LayerOptions,
+    ) -> LayerRef {
         LayerRef(self.push_layer(name, LayerKind::Normal, Some(parent.0), &opts))
     }
     /// Adds a nested group inside a parent group.
     pub fn add_group_in(&mut self, name: &str, parent: GroupRef) -> GroupRef {
-        GroupRef(self.push_layer(name, LayerKind::Group, Some(parent.0), &LayerOptions::default()))
+        GroupRef(self.push_layer(
+            name,
+            LayerKind::Group,
+            Some(parent.0),
+            &LayerOptions::default(),
+        ))
     }
     /// Adds a nested group inside a parent group with custom options.
-    pub fn add_group_in_with(&mut self, name: &str, parent: GroupRef, opts: LayerOptions) -> GroupRef {
+    pub fn add_group_in_with(
+        &mut self,
+        name: &str,
+        parent: GroupRef,
+        opts: LayerOptions,
+    ) -> GroupRef {
         GroupRef(self.push_layer(name, LayerKind::Group, Some(parent.0), &opts))
     }
 
@@ -732,19 +920,40 @@ impl AsepriteFile {
     /// Sets tilemap data for a tilemap layer/frame.
     #[allow(clippy::too_many_arguments)]
     pub fn set_tilemap_cel(
-        &mut self, layer: LayerRef, frame: usize,
-        tiles: Vec<u32>, width: u16, height: u16, x: i16, y: i16,
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        tiles: Vec<u32>,
+        width: u16,
+        height: u16,
+        x: i16,
+        y: i16,
     ) -> Result<(), AsepriteError> {
-        if frame >= self.frames.len() { return Err(AsepriteError::FrameOutOfBounds(frame)); }
-        self.cels.insert((layer.0, frame), Cel {
-            kind: CelKind::Tilemap {
-                width, height, bits_per_tile: 32,
-                tile_id_bitmask: 0x1fff_ffff, x_flip_bitmask: 0x2000_0000,
-                y_flip_bitmask: 0x4000_0000, d_flip_bitmask: 0x8000_0000,
-                tiles, x, y, original_compressed: None,
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Tilemap {
+                    width,
+                    height,
+                    bits_per_tile: 32,
+                    tile_id_bitmask: 0x1fff_ffff,
+                    x_flip_bitmask: 0x2000_0000,
+                    y_flip_bitmask: 0x4000_0000,
+                    d_flip_bitmask: 0x8000_0000,
+                    tiles,
+                    x,
+                    y,
+                    original_compressed: None,
+                },
+                opacity: 255,
+                z_index: 0,
+                user_data: None,
+                extra: None,
             },
-            opacity: 255, z_index: 0, user_data: None, extra: None,
-        });
+        );
         Ok(())
     }
 
@@ -758,61 +967,184 @@ impl AsepriteFile {
 
     // --- Cels ---
     /// Sets compressed pixel data for a layer/frame. Returns an error if the frame index is out of bounds.
-    pub fn set_cel(&mut self, layer: LayerRef, frame: usize, pixels: Pixels, x: i16, y: i16) -> Result<(), AsepriteError> {
-        if frame >= self.frames.len() { return Err(AsepriteError::FrameOutOfBounds(frame)); }
-        self.cels.insert((layer.0, frame), Cel {
-            kind: CelKind::Compressed { pixels, x, y, original_compressed: None },
-            opacity: 255, z_index: 0, user_data: None, extra: None,
-        });
+    pub fn set_cel(
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        pixels: Pixels,
+        x: i16,
+        y: i16,
+    ) -> Result<(), AsepriteError> {
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Compressed {
+                    pixels,
+                    x,
+                    y,
+                    original_compressed: None,
+                },
+                opacity: 255,
+                z_index: 0,
+                user_data: None,
+                extra: None,
+            },
+        );
         Ok(())
     }
 
     /// Sets pixel data for a layer/frame with custom opacity, position, and z-index.
-    pub fn set_cel_with(&mut self, layer: LayerRef, frame: usize, opts: CelOptions) -> Result<(), AsepriteError> {
-        if frame >= self.frames.len() { return Err(AsepriteError::FrameOutOfBounds(frame)); }
-        self.cels.insert((layer.0, frame), Cel {
-            kind: CelKind::Compressed { pixels: opts.pixels, x: opts.x, y: opts.y, original_compressed: None },
-            opacity: opts.opacity, z_index: opts.z_index, user_data: None, extra: None,
-        });
+    pub fn set_cel_with(
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        opts: CelOptions,
+    ) -> Result<(), AsepriteError> {
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Compressed {
+                    pixels: opts.pixels,
+                    x: opts.x,
+                    y: opts.y,
+                    original_compressed: None,
+                },
+                opacity: opts.opacity,
+                z_index: opts.z_index,
+                user_data: None,
+                extra: None,
+            },
+        );
         Ok(())
     }
 
     /// Sets uncompressed pixel data for a layer/frame.
-    pub fn set_raw_cel(&mut self, layer: LayerRef, frame: usize, pixels: Pixels, x: i16, y: i16) -> Result<(), AsepriteError> {
-        if frame >= self.frames.len() { return Err(AsepriteError::FrameOutOfBounds(frame)); }
-        self.cels.insert((layer.0, frame), Cel {
-            kind: CelKind::Raw { pixels, x, y }, opacity: 255, z_index: 0,
-            user_data: None, extra: None,
-        });
+    pub fn set_raw_cel(
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        pixels: Pixels,
+        x: i16,
+        y: i16,
+    ) -> Result<(), AsepriteError> {
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Raw { pixels, x, y },
+                opacity: 255,
+                z_index: 0,
+                user_data: None,
+                extra: None,
+            },
+        );
         Ok(())
     }
 
     /// Sets a linked cel pointing to another frame's cel. Returns an error if either frame index is out of bounds.
-    pub fn set_linked_cel(&mut self, layer: LayerRef, frame: usize, source_frame: usize) -> Result<(), AsepriteError> {
-        if frame >= self.frames.len() { return Err(AsepriteError::FrameOutOfBounds(frame)); }
-        if source_frame >= self.frames.len() { return Err(AsepriteError::FrameOutOfBounds(source_frame)); }
-        self.cels.insert((layer.0, frame), Cel {
-            kind: CelKind::Linked { source_frame, x: 0, y: 0 }, opacity: 255, z_index: 0,
-            user_data: None, extra: None,
-        });
+    pub fn set_linked_cel(
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        source_frame: usize,
+    ) -> Result<(), AsepriteError> {
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        if source_frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(source_frame));
+        }
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Linked {
+                    source_frame,
+                    x: 0,
+                    y: 0,
+                },
+                opacity: 255,
+                z_index: 0,
+                user_data: None,
+                extra: None,
+            },
+        );
+        Ok(())
+    }
+
+    pub fn set_linked_cel_with_props(
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        source_frame: usize,
+        x: i16,
+        y: i16,
+        opacity: u8,
+        z_index: i16,
+        user_data: Option<UserData>,
+        extra: Option<CelExtra>,
+    ) -> Result<(), AsepriteError> {
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        if source_frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(source_frame));
+        }
+
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Linked { source_frame, x, y },
+                opacity,
+                z_index,
+                user_data, 
+                extra,   
+            },
+        );
+
         Ok(())
     }
 
     // --- Tags ---
     /// Adds an animation tag spanning the given frame range.
-    pub fn add_tag(&mut self, name: &str, frames: RangeInclusive<usize>, direction: LoopDirection) -> Result<usize, AsepriteError> {
+    pub fn add_tag(
+        &mut self,
+        name: &str,
+        frames: RangeInclusive<usize>,
+        direction: LoopDirection,
+    ) -> Result<usize, AsepriteError> {
         self.add_tag_with(name, frames, direction, 0)
     }
 
     /// Adds an animation tag with a custom repeat count.
-    pub fn add_tag_with(&mut self, name: &str, frames: RangeInclusive<usize>, direction: LoopDirection, repeat: u16) -> Result<usize, AsepriteError> {
+    pub fn add_tag_with(
+        &mut self,
+        name: &str,
+        frames: RangeInclusive<usize>,
+        direction: LoopDirection,
+        repeat: u16,
+    ) -> Result<usize, AsepriteError> {
         let from = *frames.start();
         let to = *frames.end();
         if !self.frames.is_empty() && to >= self.frames.len() {
             return Err(AsepriteError::InvalidFrameRange);
         }
         let index = self.tags.len();
-        self.tags.push(Tag { name: name.to_string(), from_frame: from, to_frame: to, direction, repeat, user_data: None });
+        self.tags.push(Tag {
+            name: name.to_string(),
+            from_frame: from,
+            to_frame: to,
+            direction,
+            repeat,
+            user_data: None,
+        });
         Ok(index)
     }
 
@@ -820,89 +1152,186 @@ impl AsepriteFile {
     /// Sets the color palette. Returns an error if more than 256 entries.
     pub fn set_palette(&mut self, colors: &[Color]) -> Result<(), AsepriteError> {
         if colors.len() > 256 {
-            return Err(AsepriteError::FormatLimitExceeded { field: "palette", value: colors.len(), max: 256 });
+            return Err(AsepriteError::FormatLimitExceeded {
+                field: "palette",
+                value: colors.len(),
+                max: 256,
+            });
         }
         self.palette = colors.to_vec();
         Ok(())
     }
 
     /// Sets the transparent palette index.
-    pub fn set_transparent_index(&mut self, index: u8) { self.transparent_index = index; }
+    pub fn set_transparent_index(&mut self, index: u8) {
+        self.transparent_index = index;
+    }
     /// Sets the color profile.
-    pub fn set_color_profile(&mut self, profile: ColorProfile) { self.color_profile = Some(profile); }
+    pub fn set_color_profile(&mut self, profile: ColorProfile) {
+        self.color_profile = Some(profile);
+    }
 
     /// Adds a slice.
-    pub fn add_slice(&mut self, slice: Slice) { self.slices.push(slice); }
+    pub fn add_slice(&mut self, slice: Slice) {
+        self.slices.push(slice);
+    }
     /// Sets the sprite-level user data.
-    pub fn set_sprite_user_data(&mut self, ud: UserData) { self.sprite_user_data = Some(ud); }
+    pub fn set_sprite_user_data(&mut self, ud: UserData) {
+        self.sprite_user_data = Some(ud);
+    }
     /// Adds a tileset definition.
-    pub fn add_tileset(&mut self, tileset: Tileset) { self.tilesets.push(tileset); }
+    pub fn add_tileset(&mut self, tileset: Tileset) {
+        self.tilesets.push(tileset);
+    }
     /// Adds an external file reference.
-    pub fn add_external_file(&mut self, ef: ExternalFile) { self.external_files.push(ef); }
+    pub fn add_external_file(&mut self, ef: ExternalFile) {
+        self.external_files.push(ef);
+    }
 
     /// Sets user data on a layer.
     pub fn set_layer_user_data(&mut self, layer: LayerRef, ud: UserData) {
-        if let Some(l) = self.layers.get_mut(layer.0) { l.user_data = Some(ud); }
+        if let Some(l) = self.layers.get_mut(layer.0) {
+            l.user_data = Some(ud);
+        }
     }
     /// Sets user data on a group layer.
     pub fn set_group_user_data(&mut self, group: GroupRef, ud: UserData) {
-        if let Some(l) = self.layers.get_mut(group.0) { l.user_data = Some(ud); }
+        if let Some(l) = self.layers.get_mut(group.0) {
+            l.user_data = Some(ud);
+        }
     }
     /// Sets user data on a cel.
     pub fn set_cel_user_data(&mut self, layer: LayerRef, frame: usize, ud: UserData) {
-        if let Some(cel) = self.cels.get_mut(&(layer.0, frame)) { cel.user_data = Some(ud); }
+        if let Some(cel) = self.cels.get_mut(&(layer.0, frame)) {
+            cel.user_data = Some(ud);
+        }
     }
     /// Sets extra precision bounds on a cel.
     pub fn set_cel_extra(&mut self, layer: LayerRef, frame: usize, extra: CelExtra) {
-        if let Some(cel) = self.cels.get_mut(&(layer.0, frame)) { cel.extra = Some(extra); }
+        if let Some(cel) = self.cels.get_mut(&(layer.0, frame)) {
+            cel.extra = Some(extra);
+        }
     }
     /// Sets user data on a tag.
     pub fn set_tag_user_data(&mut self, tag_index: usize, ud: UserData) {
-        if let Some(tag) = self.tags.get_mut(tag_index) { tag.user_data = Some(ud); }
+        if let Some(tag) = self.tags.get_mut(tag_index) {
+            tag.user_data = Some(ud);
+        }
     }
 
     // --- Internal setters for reader ---
-    pub(crate) fn set_flags(&mut self, flags: u32) { self.flags = flags; }
-    pub(crate) fn set_deprecated_speed(&mut self, speed: u16) { self.deprecated_speed = speed; }
-    pub(crate) fn set_num_colors(&mut self, n: u16) { self.num_colors = n; }
-    pub(crate) fn set_pixel_ratio(&mut self, ratio: (u8, u8)) { self.pixel_ratio = ratio; }
-    pub(crate) fn set_grid(&mut self, grid: GridInfo) { self.grid = grid; }
-    pub(crate) fn push_legacy_mask(&mut self, mask: LegacyMask) { self.legacy_masks.push(mask); }
-    pub(crate) fn push_unknown_chunk(&mut self, frame_index: usize, chunk_type: u16, data: Vec<u8>) {
-        self.unknown_chunks.push(UnknownChunk { frame_index, chunk_type, data });
+    pub(crate) fn set_flags(&mut self, flags: u32) {
+        self.flags = flags;
     }
-    pub(crate) fn push_tileset(&mut self, tileset: Tileset) { self.tilesets.push(tileset); }
-    pub(crate) fn push_external_file(&mut self, ef: ExternalFile) { self.external_files.push(ef); }
-    pub(crate) fn tilesets_mut(&mut self) -> &mut Vec<Tileset> { &mut self.tilesets }
-    pub(crate) fn push_layer_raw(&mut self, layer: Layer) { self.layers.push(layer); }
+    pub(crate) fn set_deprecated_speed(&mut self, speed: u16) {
+        self.deprecated_speed = speed;
+    }
+    pub(crate) fn set_num_colors(&mut self, n: u16) {
+        self.num_colors = n;
+    }
+    pub(crate) fn set_pixel_ratio(&mut self, ratio: (u8, u8)) {
+        self.pixel_ratio = ratio;
+    }
+    pub(crate) fn set_grid(&mut self, grid: GridInfo) {
+        self.grid = grid;
+    }
+    pub(crate) fn push_legacy_mask(&mut self, mask: LegacyMask) {
+        self.legacy_masks.push(mask);
+    }
+    pub(crate) fn push_unknown_chunk(
+        &mut self,
+        frame_index: usize,
+        chunk_type: u16,
+        data: Vec<u8>,
+    ) {
+        self.unknown_chunks.push(UnknownChunk {
+            frame_index,
+            chunk_type,
+            data,
+        });
+    }
+    pub(crate) fn push_tileset(&mut self, tileset: Tileset) {
+        self.tilesets.push(tileset);
+    }
+    pub(crate) fn push_external_file(&mut self, ef: ExternalFile) {
+        self.external_files.push(ef);
+    }
+    pub(crate) fn tilesets_mut(&mut self) -> &mut Vec<Tileset> {
+        &mut self.tilesets
+    }
+    pub(crate) fn push_layer_raw(&mut self, layer: Layer) {
+        self.layers.push(layer);
+    }
     pub(crate) fn insert_cel(&mut self, layer_index: usize, frame_index: usize, cel: Cel) {
         self.cels.insert((layer_index, frame_index), cel);
     }
-    pub(crate) fn push_tag(&mut self, tag: Tag) { self.tags.push(tag); }
-    pub(crate) fn push_slice(&mut self, slice: Slice) { self.slices.push(slice); }
-    pub(crate) fn set_sprite_user_data_raw(&mut self, ud: UserData) { self.sprite_user_data = Some(ud); }
-    pub(crate) fn layers_mut(&mut self) -> &mut Vec<Layer> { &mut self.layers }
-    pub(crate) fn tags_mut(&mut self) -> &mut Vec<Tag> { &mut self.tags }
-    pub(crate) fn slices_mut(&mut self) -> &mut Vec<Slice> { &mut self.slices }
+    pub(crate) fn push_tag(&mut self, tag: Tag) {
+        self.tags.push(tag);
+    }
+    pub(crate) fn push_slice(&mut self, slice: Slice) {
+        self.slices.push(slice);
+    }
+    pub(crate) fn set_sprite_user_data_raw(&mut self, ud: UserData) {
+        self.sprite_user_data = Some(ud);
+    }
+    pub(crate) fn layers_mut(&mut self) -> &mut Vec<Layer> {
+        &mut self.layers
+    }
+    pub(crate) fn tags_mut(&mut self) -> &mut Vec<Tag> {
+        &mut self.tags
+    }
+    pub(crate) fn slices_mut(&mut self) -> &mut Vec<Slice> {
+        &mut self.slices
+    }
     pub(crate) fn cel_mut(&mut self, layer_index: usize, frame_index: usize) -> Option<&mut Cel> {
         self.cels.get_mut(&(layer_index, frame_index))
     }
     pub(crate) fn set_palette_entry(&mut self, index: usize, color: Color) {
         if index >= self.palette.len() {
-            self.palette.resize(index + 1, Color { r: 0, g: 0, b: 0, a: 255, name: None });
+            self.palette.resize(
+                index + 1,
+                Color {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 255,
+                    name: None,
+                },
+            );
         }
         self.palette[index] = color;
     }
-    pub(crate) fn cels_iter(&self) -> impl Iterator<Item = (&(usize, usize), &Cel)> { self.cels.iter() }
-    pub(crate) fn unknown_chunks_for_frame(&self, frame_index: usize) -> impl Iterator<Item = &UnknownChunk> {
-        self.unknown_chunks.iter().filter(move |uc| uc.frame_index == frame_index)
+    pub(crate) fn cels_iter(&self) -> impl Iterator<Item = (&(usize, usize), &Cel)> {
+        self.cels.iter()
+    }
+    pub(crate) fn unknown_chunks_for_frame(
+        &self,
+        frame_index: usize,
+    ) -> impl Iterator<Item = &UnknownChunk> {
+        self.unknown_chunks
+            .iter()
+            .filter(move |uc| uc.frame_index == frame_index)
     }
 
-    pub(crate) fn push_chunk_order(&mut self, frame_index: usize, chunk_type: u16, layer_index: Option<usize>) {
-        self.chunk_order.push(ChunkOrderEntry { frame_index, chunk_type, layer_index });
+    pub(crate) fn push_chunk_order(
+        &mut self,
+        frame_index: usize,
+        chunk_type: u16,
+        layer_index: Option<usize>,
+    ) {
+        self.chunk_order.push(ChunkOrderEntry {
+            frame_index,
+            chunk_type,
+            layer_index,
+        });
     }
 
-    pub(crate) fn chunk_order_for_frame(&self, frame_index: usize) -> impl Iterator<Item = &ChunkOrderEntry> {
-        self.chunk_order.iter().filter(move |e| e.frame_index == frame_index)
+    pub(crate) fn chunk_order_for_frame(
+        &self,
+        frame_index: usize,
+    ) -> impl Iterator<Item = &ChunkOrderEntry> {
+        self.chunk_order
+            .iter()
+            .filter(move |e| e.frame_index == frame_index)
     }
 }
