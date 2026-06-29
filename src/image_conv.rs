@@ -23,10 +23,11 @@ impl TryFrom<Pixels> for RgbaImage {
     type Error = AsepriteError;
 
     fn try_from(pixels: Pixels) -> Result<Self, Self::Error> {
-        RgbaImage::from_raw(pixels.width as u32, pixels.height as u32, pixels.data)
-            .ok_or(AsepriteError::PixelSizeMismatch {
+        RgbaImage::from_raw(pixels.width as u32, pixels.height as u32, pixels.data).ok_or(
+            AsepriteError::PixelSizeMismatch {
                 expected: pixels.width as usize * pixels.height as usize * 4,
                 actual: 0,
-            })
+            },
+        )
     }
 }
