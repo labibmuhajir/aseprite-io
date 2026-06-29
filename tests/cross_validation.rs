@@ -7,64 +7,64 @@ fn blend_modes_match(
 ) -> bool {
     matches!(
         (ours, theirs),
-        (aseprite::BlendMode::Normal, aseprite_loader::binary::blend_mode::BlendMode::Normal)
-            | (
-                aseprite::BlendMode::Multiply,
-                aseprite_loader::binary::blend_mode::BlendMode::Multiply
-            )
-            | (aseprite::BlendMode::Screen, aseprite_loader::binary::blend_mode::BlendMode::Screen)
-            | (
-                aseprite::BlendMode::Overlay,
-                aseprite_loader::binary::blend_mode::BlendMode::Overlay
-            )
-            | (aseprite::BlendMode::Darken, aseprite_loader::binary::blend_mode::BlendMode::Darken)
-            | (
-                aseprite::BlendMode::Lighten,
-                aseprite_loader::binary::blend_mode::BlendMode::Lighten
-            )
-            | (
-                aseprite::BlendMode::ColorDodge,
-                aseprite_loader::binary::blend_mode::BlendMode::ColorDodge
-            )
-            | (
-                aseprite::BlendMode::ColorBurn,
-                aseprite_loader::binary::blend_mode::BlendMode::ColorBurn
-            )
-            | (
-                aseprite::BlendMode::HardLight,
-                aseprite_loader::binary::blend_mode::BlendMode::HardLight
-            )
-            | (
-                aseprite::BlendMode::SoftLight,
-                aseprite_loader::binary::blend_mode::BlendMode::SoftLight
-            )
-            | (
-                aseprite::BlendMode::Difference,
-                aseprite_loader::binary::blend_mode::BlendMode::Difference
-            )
-            | (
-                aseprite::BlendMode::Exclusion,
-                aseprite_loader::binary::blend_mode::BlendMode::Exclusion
-            )
-            | (aseprite::BlendMode::Hue, aseprite_loader::binary::blend_mode::BlendMode::Hue)
-            | (
-                aseprite::BlendMode::Saturation,
-                aseprite_loader::binary::blend_mode::BlendMode::Saturation
-            )
-            | (aseprite::BlendMode::Color, aseprite_loader::binary::blend_mode::BlendMode::Color)
-            | (
-                aseprite::BlendMode::Luminosity,
-                aseprite_loader::binary::blend_mode::BlendMode::Luminosity
-            )
-            | (
-                aseprite::BlendMode::Addition,
-                aseprite_loader::binary::blend_mode::BlendMode::Addition
-            )
-            | (
-                aseprite::BlendMode::Subtract,
-                aseprite_loader::binary::blend_mode::BlendMode::Subtract
-            )
-            | (aseprite::BlendMode::Divide, aseprite_loader::binary::blend_mode::BlendMode::Divide)
+        (
+            aseprite::BlendMode::Normal,
+            aseprite_loader::binary::blend_mode::BlendMode::Normal
+        ) | (
+            aseprite::BlendMode::Multiply,
+            aseprite_loader::binary::blend_mode::BlendMode::Multiply
+        ) | (
+            aseprite::BlendMode::Screen,
+            aseprite_loader::binary::blend_mode::BlendMode::Screen
+        ) | (
+            aseprite::BlendMode::Overlay,
+            aseprite_loader::binary::blend_mode::BlendMode::Overlay
+        ) | (
+            aseprite::BlendMode::Darken,
+            aseprite_loader::binary::blend_mode::BlendMode::Darken
+        ) | (
+            aseprite::BlendMode::Lighten,
+            aseprite_loader::binary::blend_mode::BlendMode::Lighten
+        ) | (
+            aseprite::BlendMode::ColorDodge,
+            aseprite_loader::binary::blend_mode::BlendMode::ColorDodge
+        ) | (
+            aseprite::BlendMode::ColorBurn,
+            aseprite_loader::binary::blend_mode::BlendMode::ColorBurn
+        ) | (
+            aseprite::BlendMode::HardLight,
+            aseprite_loader::binary::blend_mode::BlendMode::HardLight
+        ) | (
+            aseprite::BlendMode::SoftLight,
+            aseprite_loader::binary::blend_mode::BlendMode::SoftLight
+        ) | (
+            aseprite::BlendMode::Difference,
+            aseprite_loader::binary::blend_mode::BlendMode::Difference
+        ) | (
+            aseprite::BlendMode::Exclusion,
+            aseprite_loader::binary::blend_mode::BlendMode::Exclusion
+        ) | (
+            aseprite::BlendMode::Hue,
+            aseprite_loader::binary::blend_mode::BlendMode::Hue
+        ) | (
+            aseprite::BlendMode::Saturation,
+            aseprite_loader::binary::blend_mode::BlendMode::Saturation
+        ) | (
+            aseprite::BlendMode::Color,
+            aseprite_loader::binary::blend_mode::BlendMode::Color
+        ) | (
+            aseprite::BlendMode::Luminosity,
+            aseprite_loader::binary::blend_mode::BlendMode::Luminosity
+        ) | (
+            aseprite::BlendMode::Addition,
+            aseprite_loader::binary::blend_mode::BlendMode::Addition
+        ) | (
+            aseprite::BlendMode::Subtract,
+            aseprite_loader::binary::blend_mode::BlendMode::Subtract
+        ) | (
+            aseprite::BlendMode::Divide,
+            aseprite_loader::binary::blend_mode::BlendMode::Divide
+        )
     )
 }
 
@@ -129,16 +129,8 @@ fn cross_validate(path: &str) {
     };
 
     // --- Header ---
-    assert_eq!(
-        ours.width(),
-        theirs.size().0,
-        "{path}: width mismatch"
-    );
-    assert_eq!(
-        ours.height(),
-        theirs.size().1,
-        "{path}: height mismatch"
-    );
+    assert_eq!(ours.width(), theirs.size().0, "{path}: width mismatch");
+    assert_eq!(ours.height(), theirs.size().1, "{path}: height mismatch");
     assert_eq!(
         ours.frames().len(),
         theirs.frames().len(),

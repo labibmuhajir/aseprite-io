@@ -1,6 +1,6 @@
-use std::io::Write;
 use crate::error::AsepriteError;
 use crate::types::*;
+use std::io::Write;
 
 // --- Binary write helpers ---
 
@@ -90,35 +90,35 @@ enum WriterLastEntity {
 
 fn writer_resolve_user_data(file: &AsepriteFile, last: &mut WriterLastEntity) -> UserData {
     match last {
-        WriterLastEntity::Layer(idx) => {
-            file.layers().get(*idx)
-                .and_then(|l| l.user_data.clone())
-                .unwrap_or_default()
-        }
-        WriterLastEntity::Cel(layer_idx, frame_idx) => {
-            file.cels_iter()
-                .find(|&(&(l, f), _)| l == *layer_idx && f == *frame_idx)
-                .and_then(|(_, c)| c.user_data.clone())
-                .unwrap_or_default()
-        }
+        WriterLastEntity::Layer(idx) => file
+            .layers()
+            .get(*idx)
+            .and_then(|l| l.user_data.clone())
+            .unwrap_or_default(),
+        WriterLastEntity::Cel(layer_idx, frame_idx) => file
+            .cels_iter()
+            .find(|&(&(l, f), _)| l == *layer_idx && f == *frame_idx)
+            .and_then(|(_, c)| c.user_data.clone())
+            .unwrap_or_default(),
         WriterLastEntity::TagSequence(next_tag) => {
             let tag_idx = *next_tag;
             *next_tag = tag_idx + 1;
-            file.tags().get(tag_idx)
+            file.tags()
+                .get(tag_idx)
                 .and_then(|t| t.user_data.clone())
                 .unwrap_or_default()
         }
-        WriterLastEntity::Palette => {
-            file.sprite_user_data().clone().unwrap_or_default()
-        }
-        WriterLastEntity::Slice(idx) => {
-            file.slices().get(*idx)
-                .and_then(|s| s.user_data.clone())
-                .unwrap_or_default()
-        }
+        WriterLastEntity::Palette => file.sprite_user_data().clone().unwrap_or_default(),
+        WriterLastEntity::Slice(idx) => file
+            .slices()
+            .get(*idx)
+            .and_then(|s| s.user_data.clone())
+            .unwrap_or_default(),
         WriterLastEntity::Tileset(idx) => {
             let ts_idx = *idx;
-            let ud = file.tilesets().get(ts_idx)
+            let ud = file
+                .tilesets()
+                .get(ts_idx)
                 .and_then(|ts| ts.user_data.clone())
                 .unwrap_or_default();
             *last = WriterLastEntity::TileSequence(ts_idx, 0);
@@ -127,7 +127,9 @@ fn writer_resolve_user_data(file: &AsepriteFile, last: &mut WriterLastEntity) ->
         WriterLastEntity::TileSequence(ts_idx, tile_idx) => {
             let ti = *tile_idx;
             let tsi = *ts_idx;
-            let ud = file.tilesets().get(tsi)
+            let ud = file
+                .tilesets()
+                .get(tsi)
                 .and_then(|ts| ts.tile_user_data.get(ti))
                 .and_then(|u| u.clone())
                 .unwrap_or_default();
@@ -142,10 +144,18 @@ fn writer_resolve_user_data(file: &AsepriteFile, last: &mut WriterLastEntity) ->
 
 pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), AsepriteError> {
     if file.frames().len() > u16::MAX as usize {
-        return Err(AsepriteError::FormatLimitExceeded { field: "frames", value: file.frames().len(), max: u16::MAX as usize });
+        return Err(AsepriteError::FormatLimitExceeded {
+            field: "frames",
+            value: file.frames().len(),
+            max: u16::MAX as usize,
+        });
     }
     if file.layers().len() > u16::MAX as usize {
-        return Err(AsepriteError::FormatLimitExceeded { field: "layers", value: file.layers().len(), max: u16::MAX as usize });
+        return Err(AsepriteError::FormatLimitExceeded {
+            field: "layers",
+            value: file.layers().len(),
+            max: u16::MAX as usize,
+        });
     }
     if file.color_mode() == ColorMode::Indexed && file.palette().is_empty() {
         return Err(AsepriteError::MissingPalette);
@@ -156,13 +166,17 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
     for frame_index in 0..file.frames().len() {
         let mut chunks: Vec<Vec<u8>> = Vec::new();
 
-        let chunk_order: Vec<ChunkOrderEntry> = file.chunk_order_for_frame(frame_index).cloned().collect();
+        let chunk_order: Vec<ChunkOrderEntry> =
+            file.chunk_order_for_frame(frame_index).cloned().collect();
 
         if chunk_order.is_empty() {
             // Programmatically created file -- use default order
             if frame_index == 0 {
                 if !file.external_files().is_empty() {
-                    chunks.push(wrap_chunk(0x2008, &encode_external_files_chunk(file.external_files())?));
+                    chunks.push(wrap_chunk(
+                        0x2008,
+                        &encode_external_files_chunk(file.external_files())?,
+                    ));
                 }
                 for tileset in file.tilesets() {
                     chunks.push(wrap_chunk(0x2023, &encode_tileset_chunk(tileset)?));
@@ -173,7 +187,12 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
                     }
                     if has_tile_ud {
                         for i in 0..tileset.tile_count as usize {
-                            let ud = tileset.tile_user_data.get(i).and_then(|u| u.as_ref()).cloned().unwrap_or_default();
+                            let ud = tileset
+                                .tile_user_data
+                                .get(i)
+                                .and_then(|u| u.as_ref())
+                                .cloned()
+                                .unwrap_or_default();
                             chunks.push(wrap_chunk(0x2020, &encode_user_data_chunk(&ud)?));
                         }
                     }
@@ -190,14 +209,23 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
                     chunks.push(wrap_chunk(0x2019, &encode_palette_chunk(file.palette())?));
                     emit_user_data_chunk(&mut chunks, file.sprite_user_data())?;
                 } else if has_sprite_ud {
-                    let default_palette = [Color { r: 0, g: 0, b: 0, a: 255, name: None }];
+                    let default_palette = [Color {
+                        r: 0,
+                        g: 0,
+                        b: 0,
+                        a: 255,
+                        name: None,
+                    }];
                     chunks.push(wrap_chunk(0x2019, &encode_palette_chunk(&default_palette)?));
                     emit_user_data_chunk(&mut chunks, file.sprite_user_data())?;
                 }
                 if !file.tags().is_empty() {
                     chunks.push(wrap_chunk(0x2018, &encode_tags_chunk(file.tags())?));
                     // After tags chunk, emit one user_data per tag if any tag has user data
-                    let any_tag_ud = file.tags().iter().any(|t| is_non_empty_user_data(&t.user_data));
+                    let any_tag_ud = file
+                        .tags()
+                        .iter()
+                        .any(|t| is_non_empty_user_data(&t.user_data));
                     if any_tag_ud {
                         for tag in file.tags() {
                             let ud = tag.user_data.as_ref().cloned().unwrap_or_default();
@@ -235,14 +263,18 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
                 match entry.chunk_type {
                     0x2004 => {
                         if layer_emit_counter < file.layers().len() {
-                            chunks.push(wrap_chunk(0x2004, &encode_layer_chunk(file, &file.layers()[layer_emit_counter])?));
+                            chunks.push(wrap_chunk(
+                                0x2004,
+                                &encode_layer_chunk(file, &file.layers()[layer_emit_counter])?,
+                            ));
                             writer_last_entity = WriterLastEntity::Layer(layer_emit_counter);
                             layer_emit_counter += 1;
                         }
                     }
                     0x2005 => {
                         if let Some(li) = entry.layer_index
-                            && let Some(cel) = file.cels_iter()
+                            && let Some(cel) = file
+                                .cels_iter()
                                 .find(|&(&(l, f), _)| l == li && f == frame_index)
                                 .map(|(_, c)| c)
                         {
@@ -252,7 +284,8 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
                     }
                     0x2006 => {
                         if let WriterLastEntity::Cel(li, fi) = &writer_last_entity
-                            && let Some(cel) = file.cels_iter()
+                            && let Some(cel) = file
+                                .cels_iter()
                                 .find(|&(&(l, f), _)| l == *li && f == *fi)
                                 .map(|(_, c)| c)
                             && let Some(extra) = &cel.extra
@@ -285,19 +318,28 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
                     }
                     0x2008 => {
                         if !file.external_files().is_empty() {
-                            chunks.push(wrap_chunk(0x2008, &encode_external_files_chunk(file.external_files())?));
+                            chunks.push(wrap_chunk(
+                                0x2008,
+                                &encode_external_files_chunk(file.external_files())?,
+                            ));
                         }
                     }
                     0x2023 => {
                         if tileset_emit_counter < file.tilesets().len() {
-                            chunks.push(wrap_chunk(0x2023, &encode_tileset_chunk(&file.tilesets()[tileset_emit_counter])?));
+                            chunks.push(wrap_chunk(
+                                0x2023,
+                                &encode_tileset_chunk(&file.tilesets()[tileset_emit_counter])?,
+                            ));
                             writer_last_entity = WriterLastEntity::Tileset(tileset_emit_counter);
                             tileset_emit_counter += 1;
                         }
                     }
                     0x2022 => {
                         if slice_emit_counter < file.slices().len() {
-                            chunks.push(wrap_chunk(0x2022, &encode_slice_chunk(&file.slices()[slice_emit_counter])?));
+                            chunks.push(wrap_chunk(
+                                0x2022,
+                                &encode_slice_chunk(&file.slices()[slice_emit_counter])?,
+                            ));
                             writer_last_entity = WriterLastEntity::Slice(slice_emit_counter);
                             slice_emit_counter += 1;
                         }
@@ -330,7 +372,11 @@ pub fn write_to<W: Write>(file: &AsepriteFile, mut writer: W) -> Result<(), Asep
         let mut frame_buf = Vec::with_capacity(frame_size);
         write_dword(&mut frame_buf, frame_size as u32)?;
         write_word(&mut frame_buf, 0xF1FA)?;
-        let old_chunks = if num_chunks > 0xFFFE { 0xFFFF } else { num_chunks as u16 };
+        let old_chunks = if num_chunks > 0xFFFE {
+            0xFFFF
+        } else {
+            num_chunks as u16
+        };
         write_word(&mut frame_buf, old_chunks)?;
         write_word(&mut frame_buf, file.frames()[frame_index].duration_ms)?;
         write_zeros(&mut frame_buf, 2)?;
@@ -379,13 +425,27 @@ fn encode_layer_chunk(file: &AsepriteFile, layer: &Layer) -> Result<Vec<u8>, Ase
     let mut buf = Vec::new();
 
     let mut flags: u16 = 0;
-    if layer.visible { flags |= 1; }
-    if layer.editable { flags |= 2; }
-    if layer.lock_movement { flags |= 4; }
-    if layer.background { flags |= 8; }
-    if layer.prefer_linked_cels { flags |= 16; }
-    if layer.collapsed { flags |= 32; }
-    if layer.reference_layer { flags |= 64; }
+    if layer.visible {
+        flags |= 1;
+    }
+    if layer.editable {
+        flags |= 2;
+    }
+    if layer.lock_movement {
+        flags |= 4;
+    }
+    if layer.background {
+        flags |= 8;
+    }
+    if layer.prefer_linked_cels {
+        flags |= 16;
+    }
+    if layer.collapsed {
+        flags |= 32;
+    }
+    if layer.reference_layer {
+        flags |= 64;
+    }
     write_word(&mut buf, flags)?;
 
     let layer_type: u16 = match layer.kind {
@@ -452,13 +512,18 @@ fn encode_cel_chunk(cel: &Cel, layer_index: usize) -> Result<Vec<u8>, AsepriteEr
             write_word(&mut buf, pixels.height)?;
             buf.extend_from_slice(&pixels.data);
         }
-        CelKind::Compressed { pixels, original_compressed, .. } => {
+        CelKind::Compressed {
+            pixels,
+            original_compressed,
+            ..
+        } => {
             write_word(&mut buf, pixels.width)?;
             write_word(&mut buf, pixels.height)?;
             if let Some(raw) = original_compressed {
                 buf.extend_from_slice(raw);
             } else {
-                let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+                let mut encoder =
+                    flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
                 encoder.write_all(&pixels.data)?;
                 let compressed = encoder.finish()?;
                 buf.extend_from_slice(&compressed);
@@ -468,9 +533,16 @@ fn encode_cel_chunk(cel: &Cel, layer_index: usize) -> Result<Vec<u8>, AsepriteEr
             write_word(&mut buf, *source_frame as u16)?;
         }
         CelKind::Tilemap {
-            width, height, bits_per_tile,
-            tile_id_bitmask, x_flip_bitmask, y_flip_bitmask, d_flip_bitmask,
-            tiles, original_compressed, ..
+            width,
+            height,
+            bits_per_tile,
+            tile_id_bitmask,
+            x_flip_bitmask,
+            y_flip_bitmask,
+            d_flip_bitmask,
+            tiles,
+            original_compressed,
+            ..
         } => {
             write_word(&mut buf, *width)?;
             write_word(&mut buf, *height)?;
@@ -488,7 +560,8 @@ fn encode_cel_chunk(cel: &Cel, layer_index: usize) -> Result<Vec<u8>, AsepriteEr
                 for tile in tiles {
                     tile_bytes.extend_from_slice(&tile.to_le_bytes());
                 }
-                let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+                let mut encoder =
+                    flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
                 encoder.write_all(&tile_bytes)?;
                 let compressed = encoder.finish()?;
                 buf.extend_from_slice(&compressed);
@@ -530,7 +603,7 @@ fn encode_palette_chunk(palette: &[Color]) -> Result<Vec<u8>, AsepriteError> {
     let mut buf = Vec::new();
     let count = palette.len() as u32;
     write_dword(&mut buf, count)?;
-    write_dword(&mut buf, 0)?;        // first
+    write_dword(&mut buf, 0)?; // first
     write_dword(&mut buf, count - 1)?; // last
     write_zeros(&mut buf, 8)?;
 
@@ -553,8 +626,12 @@ fn encode_slice_chunk(slice: &Slice) -> Result<Vec<u8>, AsepriteError> {
     let mut buf = Vec::new();
     write_dword(&mut buf, slice.keys.len() as u32)?;
     let mut flags: u32 = 0;
-    if slice.has_nine_patch { flags |= 1; }
-    if slice.has_pivot { flags |= 2; }
+    if slice.has_nine_patch {
+        flags |= 1;
+    }
+    if slice.has_pivot {
+        flags |= 2;
+    }
     write_dword(&mut buf, flags)?;
     write_dword(&mut buf, 0)?; // reserved
     write_string(&mut buf, &slice.name)?;
@@ -604,20 +681,27 @@ fn encode_tileset_chunk(tileset: &Tileset) -> Result<Vec<u8>, AsepriteError> {
     write_string(&mut buf, &tileset.name)?;
 
     if tileset.flags.has_external_link()
-        && let TilesetData::External { external_file_id, tileset_id_in_external } = &tileset.data
+        && let TilesetData::External {
+            external_file_id,
+            tileset_id_in_external,
+        } = &tileset.data
     {
         write_dword(&mut buf, *external_file_id)?;
         write_dword(&mut buf, *tileset_id_in_external)?;
     }
 
     if tileset.flags.has_embedded_tiles()
-        && let TilesetData::Embedded { pixels, original_compressed } = &tileset.data
+        && let TilesetData::Embedded {
+            pixels,
+            original_compressed,
+        } = &tileset.data
     {
         if let Some(raw) = original_compressed {
             write_dword(&mut buf, raw.len() as u32)?;
             buf.extend_from_slice(raw);
         } else {
-            let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            let mut encoder =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
             encoder.write_all(pixels)?;
             let compressed = encoder.finish()?;
             write_dword(&mut buf, compressed.len() as u32)?;
@@ -651,7 +735,7 @@ fn encode_tags_chunk(tags: &[Tag]) -> Result<Vec<u8>, AsepriteError> {
         write_word(&mut buf, tag.repeat)?;
         write_zeros(&mut buf, 6)?;
         write_zeros(&mut buf, 3)?; // deprecated RGB
-        write_byte(&mut buf, 0)?;  // extra
+        write_byte(&mut buf, 0)?; // extra
         write_string(&mut buf, &tag.name)?;
     }
 
@@ -661,9 +745,15 @@ fn encode_tags_chunk(tags: &[Tag]) -> Result<Vec<u8>, AsepriteError> {
 fn encode_user_data_chunk(ud: &UserData) -> Result<Vec<u8>, AsepriteError> {
     let mut buf = Vec::new();
     let mut flags: u32 = 0;
-    if ud.text.is_some() { flags |= 1; }
-    if ud.color.is_some() { flags |= 2; }
-    if !ud.properties.is_empty() { flags |= 4; }
+    if ud.text.is_some() {
+        flags |= 1;
+    }
+    if ud.color.is_some() {
+        flags |= 2;
+    }
+    if !ud.properties.is_empty() {
+        flags |= 4;
+    }
     write_dword(&mut buf, flags)?;
 
     if let Some(ref text) = ud.text {
@@ -741,11 +831,19 @@ fn encode_property_value(buf: &mut Vec<u8>, value: &PropertyValue) -> Result<(),
         PropertyValue::Float(v) => write_float(buf, *v)?,
         PropertyValue::Double(v) => write_double(buf, *v)?,
         PropertyValue::String(s) => write_string(buf, s)?,
-        PropertyValue::Point(x, y) => { write_long(buf, *x)?; write_long(buf, *y)?; }
-        PropertyValue::Size(w, h) => { write_long(buf, *w)?; write_long(buf, *h)?; }
+        PropertyValue::Point(x, y) => {
+            write_long(buf, *x)?;
+            write_long(buf, *y)?;
+        }
+        PropertyValue::Size(w, h) => {
+            write_long(buf, *w)?;
+            write_long(buf, *h)?;
+        }
         PropertyValue::Rect(x, y, w, h) => {
-            write_long(buf, *x)?; write_long(buf, *y)?;
-            write_long(buf, *w)?; write_long(buf, *h)?;
+            write_long(buf, *x)?;
+            write_long(buf, *y)?;
+            write_long(buf, *w)?;
+            write_long(buf, *h)?;
         }
         PropertyValue::Vector(elements) => {
             write_dword(buf, elements.len() as u32)?;
@@ -753,7 +851,10 @@ fn encode_property_value(buf: &mut Vec<u8>, value: &PropertyValue) -> Result<(),
                 None
             } else {
                 let first_type = property_value_type_id(&elements[0]);
-                if elements.iter().all(|e| property_value_type_id(e) == first_type) {
+                if elements
+                    .iter()
+                    .all(|e| property_value_type_id(e) == first_type)
+                {
                     Some(first_type)
                 } else {
                     None
@@ -780,7 +881,9 @@ fn encode_property_value(buf: &mut Vec<u8>, value: &PropertyValue) -> Result<(),
                 encode_property_value(buf, value)?;
             }
         }
-        PropertyValue::Uuid(bytes) => { buf.extend_from_slice(bytes); }
+        PropertyValue::Uuid(bytes) => {
+            buf.extend_from_slice(bytes);
+        }
     }
     Ok(())
 }
@@ -792,7 +895,10 @@ fn is_non_empty_user_data(ud: &Option<UserData>) -> bool {
     }
 }
 
-fn emit_user_data_chunk(chunks: &mut Vec<Vec<u8>>, ud: &Option<UserData>) -> Result<(), AsepriteError> {
+fn emit_user_data_chunk(
+    chunks: &mut Vec<Vec<u8>>,
+    ud: &Option<UserData>,
+) -> Result<(), AsepriteError> {
     if let Some(ud) = ud {
         chunks.push(wrap_chunk(0x2020, &encode_user_data_chunk(ud)?));
     }

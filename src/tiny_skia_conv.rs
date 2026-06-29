@@ -42,7 +42,11 @@ impl From<Pixmap> for Pixels {
         let height = pixmap.height() as u16;
         let mut data = pixmap.take();
         premultiplied_to_straight(&mut data);
-        Self { data, width, height }
+        Self {
+            data,
+            width,
+            height,
+        }
     }
 }
 
@@ -53,7 +57,11 @@ impl From<&Pixmap> for Pixels {
         let height = pixmap.height() as u16;
         let mut data = pixmap.data().to_vec();
         premultiplied_to_straight(&mut data);
-        Self { data, width, height }
+        Self {
+            data,
+            width,
+            height,
+        }
     }
 }
 
@@ -66,11 +74,15 @@ impl TryFrom<Pixels> for Pixmap {
     fn try_from(pixels: Pixels) -> Result<Self, Self::Error> {
         let mut data = pixels.data;
         straight_to_premultiplied(&mut data);
-        Pixmap::from_vec(data, tiny_skia::IntSize::from_wh(pixels.width as u32, pixels.height as u32)
-            .ok_or(AsepriteError::PixelSizeMismatch {
-                expected: pixels.width as usize * pixels.height as usize * 4,
-                actual: 0,
-            })?)
+        Pixmap::from_vec(
+            data,
+            tiny_skia::IntSize::from_wh(pixels.width as u32, pixels.height as u32).ok_or(
+                AsepriteError::PixelSizeMismatch {
+                    expected: pixels.width as usize * pixels.height as usize * 4,
+                    actual: 0,
+                },
+            )?,
+        )
         .ok_or(AsepriteError::PixelSizeMismatch {
             expected: pixels.width as usize * pixels.height as usize * 4,
             actual: 0,

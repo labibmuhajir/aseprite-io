@@ -25,7 +25,11 @@ pub enum AsepriteError {
     /// A chunk or property type ID is not recognized.
     UnsupportedChunkType(u16),
     /// A value exceeds the format's limit (e.g., more than 256 palette entries).
-    FormatLimitExceeded { field: &'static str, value: usize, max: usize },
+    FormatLimitExceeded {
+        field: &'static str,
+        value: usize,
+        max: usize,
+    },
 }
 
 impl fmt::Display for AsepriteError {
@@ -36,12 +40,21 @@ impl fmt::Display for AsepriteError {
             Self::UnsupportedColorDepth(d) => write!(f, "unsupported color depth: {d}"),
             Self::FrameOutOfBounds(i) => write!(f, "frame index {i} out of bounds"),
             Self::PixelSizeMismatch { expected, actual } => {
-                write!(f, "pixel data size mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "pixel data size mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::InvalidFrameRange => write!(f, "invalid frame range"),
             Self::MissingPalette => write!(f, "indexed color mode requires a palette"),
-            Self::LinkedCelNotFound { layer, source_frame } => {
-                write!(f, "linked cel not found: layer {layer}, source frame {source_frame}")
+            Self::LinkedCelNotFound {
+                layer,
+                source_frame,
+            } => {
+                write!(
+                    f,
+                    "linked cel not found: layer {layer}, source frame {source_frame}"
+                )
             }
             Self::InvalidChunkSize => write!(f, "invalid chunk size"),
             Self::UnsupportedChunkType(t) => write!(f, "unsupported chunk type: 0x{t:04X}"),

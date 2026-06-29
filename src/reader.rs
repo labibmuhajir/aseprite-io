@@ -1,6 +1,6 @@
-use std::io::Read;
 use crate::error::AsepriteError;
 use crate::types::*;
+use std::io::Read;
 
 // --- Binary read helpers ---
 
@@ -33,7 +33,8 @@ fn read_string<R: Read>(r: &mut R) -> Result<String, AsepriteError> {
     let mut buf = vec![0u8; len];
     r.read_exact(&mut buf)?;
     // Try zero-copy path first; only copy on invalid UTF-8
-    Ok(String::from_utf8(buf).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned()))
+    Ok(String::from_utf8(buf)
+        .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned()))
 }
 
 fn read_bytes<R: Read>(r: &mut R, n: usize) -> Result<Vec<u8>, AsepriteError> {
@@ -73,7 +74,9 @@ fn read_double<R: Read>(r: &mut R) -> Result<f64, AsepriteError> {
 }
 
 fn skip<R: Read>(r: &mut R, n: usize) -> Result<(), AsepriteError> {
-    if n == 0 { return Ok(()); }
+    if n == 0 {
+        return Ok(());
+    }
     let mut buf = [0u8; 128];
     let mut remaining = n;
     while remaining > 0 {
@@ -137,7 +140,12 @@ pub fn from_reader<R: Read>(mut reader: R) -> Result<AsepriteFile, AsepriteError
     file.set_num_colors(num_colors);
     file.set_transparent_index(transparent_index);
     file.set_pixel_ratio(pixel_ratio);
-    file.set_grid(GridInfo { x: grid_x, y: grid_y, width: grid_w, height: grid_h });
+    file.set_grid(GridInfo {
+        x: grid_x,
+        y: grid_y,
+        width: grid_w,
+        height: grid_h,
+    });
 
     let mut last_entity = LastEntity::None;
 
@@ -173,7 +181,8 @@ pub fn from_reader<R: Read>(mut reader: R) -> Result<AsepriteFile, AsepriteError
                     file.push_chunk_order(frame_index, 0x2004, None);
                 }
                 0x2005 => {
-                    let layer_idx = read_cel_chunk(&mut reader, &mut file, frame_index, color_mode, data_size)?;
+                    let layer_idx =
+                        read_cel_chunk(&mut reader, &mut file, frame_index, color_mode, data_size)?;
                     if let Some(li) = layer_idx {
                         last_entity = LastEntity::Cel(li, frame_index);
                     }
@@ -265,21 +274,35 @@ pub fn from_reader<R: Read>(mut reader: R) -> Result<AsepriteFile, AsepriteError
 
 // --- Chunk readers ---
 
-fn read_layer_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_layer_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let mut consumed = 0usize;
 
-    let flags_raw = read_word(r)?; consumed += 2;
-    let layer_type = read_word(r)?; consumed += 2;
-    let child_level = read_word(r)?; consumed += 2;
-    let _default_width = read_word(r)?; consumed += 2;
-    let _default_height = read_word(r)?; consumed += 2;
-    let blend_mode = BlendMode::from_u16(read_word(r)?); consumed += 2;
-    let opacity = read_byte(r)?; consumed += 1;
-    skip(r, 3)?; consumed += 3;
-    let name = read_string(r)?; consumed += 2 + name.len();
+    let flags_raw = read_word(r)?;
+    consumed += 2;
+    let layer_type = read_word(r)?;
+    consumed += 2;
+    let child_level = read_word(r)?;
+    consumed += 2;
+    let _default_width = read_word(r)?;
+    consumed += 2;
+    let _default_height = read_word(r)?;
+    consumed += 2;
+    let blend_mode = BlendMode::from_u16(read_word(r)?);
+    consumed += 2;
+    let opacity = read_byte(r)?;
+    consumed += 1;
+    skip(r, 3)?;
+    consumed += 3;
+    let name = read_string(r)?;
+    consumed += 2 + name.len();
 
     let tileset_index = if layer_type == 2 {
-        let idx = read_dword(r)?; consumed += 4;
+        let idx = read_dword(r)?;
+        consumed += 4;
         Some(idx)
     } else {
         None
@@ -291,7 +314,9 @@ fn read_layer_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usiz
 
     let kind = match layer_type {
         1 => LayerKind::Group,
-        2 => LayerKind::Tilemap { tileset_index: tileset_index.unwrap_or(0) },
+        2 => LayerKind::Tilemap {
+            tileset_index: tileset_index.unwrap_or(0),
+        },
         _ => LayerKind::Normal,
     };
 
@@ -302,7 +327,11 @@ fn read_layer_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usiz
     };
 
     file.push_layer_raw(Layer {
-        name, kind, parent, opacity, blend_mode,
+        name,
+        kind,
+        parent,
+        opacity,
+        blend_mode,
         visible: flags_raw & 1 != 0,
         editable: flags_raw & 2 != 0,
         lock_movement: flags_raw & 4 != 0,
@@ -317,7 +346,9 @@ fn read_layer_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usiz
 }
 
 fn find_parent_for_child_level(file: &AsepriteFile, child_level: u16) -> Option<usize> {
-    if child_level == 0 { return None; }
+    if child_level == 0 {
+        return None;
+    }
     let layers = file.layers();
     for i in (0..layers.len()).rev() {
         let layer_level = compute_child_level(layers, i);
@@ -339,8 +370,11 @@ fn compute_child_level(layers: &[Layer], index: usize) -> u16 {
 }
 
 fn read_cel_chunk<R: Read>(
-    r: &mut R, file: &mut AsepriteFile, frame_index: usize,
-    color_mode: ColorMode, data_size: usize,
+    r: &mut R,
+    file: &mut AsepriteFile,
+    frame_index: usize,
+    color_mode: ColorMode,
+    data_size: usize,
 ) -> Result<Option<usize>, AsepriteError> {
     let layer_index = read_word(r)? as usize;
     let x = read_short(r)?;
@@ -359,12 +393,24 @@ fn read_cel_chunk<R: Read>(
             let pixel_data_size = w as usize * h as usize * color_mode.bytes_per_pixel();
             let data = read_bytes(r, pixel_data_size)?;
             let extra = remaining - 4 - pixel_data_size;
-            if extra > 0 { skip(r, extra)?; }
-            CelKind::Raw { pixels: Pixels { data, width: w, height: h }, x, y }
+            if extra > 0 {
+                skip(r, extra)?;
+            }
+            CelKind::Raw {
+                pixels: Pixels {
+                    data,
+                    width: w,
+                    height: h,
+                },
+                x,
+                y,
+            }
         }
         1 => {
             let source_frame = read_word(r)? as usize;
-            if remaining > 2 { skip(r, remaining - 2)?; }
+            if remaining > 2 {
+                skip(r, remaining - 2)?;
+            }
             CelKind::Linked { source_frame, x, y }
         }
         2 => {
@@ -376,8 +422,13 @@ fn read_cel_chunk<R: Read>(
             let mut decompressed = Vec::new();
             decoder.read_to_end(&mut decompressed)?;
             CelKind::Compressed {
-                pixels: Pixels { data: decompressed, width: w, height: h },
-                x, y,
+                pixels: Pixels {
+                    data: decompressed,
+                    width: w,
+                    height: h,
+                },
+                x,
+                y,
                 original_compressed: Some(compressed),
             }
         }
@@ -399,15 +450,23 @@ fn read_cel_chunk<R: Read>(
             decoder.read_to_end(&mut decompressed)?;
 
             let num_tiles = w as usize * h as usize;
-            let tiles: Vec<u32> = decompressed.chunks_exact(4)
+            let tiles: Vec<u32> = decompressed
+                .chunks_exact(4)
                 .take(num_tiles)
                 .map(|chunk| u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
                 .collect();
 
             CelKind::Tilemap {
-                width: w, height: h, bits_per_tile,
-                tile_id_bitmask, x_flip_bitmask, y_flip_bitmask, d_flip_bitmask,
-                tiles, x, y,
+                width: w,
+                height: h,
+                bits_per_tile,
+                tile_id_bitmask,
+                x_flip_bitmask,
+                y_flip_bitmask,
+                d_flip_bitmask,
+                tiles,
+                x,
+                y,
                 original_compressed: Some(compressed),
             }
         }
@@ -417,11 +476,25 @@ fn read_cel_chunk<R: Read>(
         }
     };
 
-    file.insert_cel(layer_index, frame_index, Cel { kind, opacity, z_index, user_data: None, extra: None });
+    file.insert_cel(
+        layer_index,
+        frame_index,
+        Cel {
+            kind,
+            opacity,
+            z_index,
+            user_data: None,
+            extra: None,
+        },
+    );
     Ok(Some(layer_index))
 }
 
-fn read_color_profile_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_color_profile_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let profile_type = read_word(r)?;
     let flags = read_word(r)?;
     let gamma = read_dword(r)?;
@@ -431,18 +504,28 @@ fn read_color_profile_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_si
 
     let profile = match profile_type {
         1 => {
-            if remaining > 0 { skip(r, remaining)?; }
+            if remaining > 0 {
+                skip(r, remaining)?;
+            }
             ColorProfile::SRgb { flags, gamma }
         }
         2 => {
             let icc_length = read_dword(r)? as usize;
             let icc_data = read_bytes(r, icc_length)?;
             let extra = remaining - 4 - icc_length;
-            if extra > 0 { skip(r, extra)?; }
-            ColorProfile::Icc { flags, gamma, data: icc_data }
+            if extra > 0 {
+                skip(r, extra)?;
+            }
+            ColorProfile::Icc {
+                flags,
+                gamma,
+                data: icc_data,
+            }
         }
         _ => {
-            if remaining > 0 { skip(r, remaining)?; }
+            if remaining > 0 {
+                skip(r, remaining)?;
+            }
             ColorProfile::None
         }
     };
@@ -451,48 +534,93 @@ fn read_color_profile_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_si
     Ok(())
 }
 
-fn read_tags_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_tags_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let mut consumed = 0usize;
-    let num_tags = read_word(r)?; consumed += 2;
-    skip(r, 8)?; consumed += 8;
+    let num_tags = read_word(r)?;
+    consumed += 2;
+    skip(r, 8)?;
+    consumed += 8;
 
     for _ in 0..num_tags {
-        let from_frame = read_word(r)? as usize; consumed += 2;
-        let to_frame = read_word(r)? as usize; consumed += 2;
-        let direction = LoopDirection::from_u8(read_byte(r)?); consumed += 1;
-        let repeat = read_word(r)?; consumed += 2;
-        skip(r, 6)?; consumed += 6;
-        skip(r, 3)?; consumed += 3;
-        skip(r, 1)?; consumed += 1;
-        let name = read_string(r)?; consumed += 2 + name.len();
+        let from_frame = read_word(r)? as usize;
+        consumed += 2;
+        let to_frame = read_word(r)? as usize;
+        consumed += 2;
+        let direction = LoopDirection::from_u8(read_byte(r)?);
+        consumed += 1;
+        let repeat = read_word(r)?;
+        consumed += 2;
+        skip(r, 6)?;
+        consumed += 6;
+        skip(r, 3)?;
+        consumed += 3;
+        skip(r, 1)?;
+        consumed += 1;
+        let name = read_string(r)?;
+        consumed += 2 + name.len();
 
-        file.push_tag(Tag { name, from_frame, to_frame, direction, repeat, user_data: None });
+        file.push_tag(Tag {
+            name,
+            from_frame,
+            to_frame,
+            direction,
+            repeat,
+            user_data: None,
+        });
     }
 
-    if consumed < data_size { skip(r, data_size - consumed)?; }
+    if consumed < data_size {
+        skip(r, data_size - consumed)?;
+    }
     Ok(())
 }
 
-fn read_palette_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_palette_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let mut consumed = 0usize;
-    let new_size = read_dword(r)? as usize; consumed += 4;
-    let first = read_dword(r)? as usize; consumed += 4;
-    let last = read_dword(r)? as usize; consumed += 4;
-    skip(r, 8)?; consumed += 8;
+    let new_size = read_dword(r)? as usize;
+    consumed += 4;
+    let first = read_dword(r)? as usize;
+    consumed += 4;
+    let last = read_dword(r)? as usize;
+    consumed += 4;
+    skip(r, 8)?;
+    consumed += 8;
 
     let needed = new_size.max(last + 1);
     if needed > file.palette().len() {
         let mut palette = file.palette().to_vec();
-        palette.resize(needed, Color { r: 0, g: 0, b: 0, a: 255, name: None });
+        palette.resize(
+            needed,
+            Color {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+                name: None,
+            },
+        );
         let _ = file.set_palette(&palette);
     }
 
     for i in first..=last {
-        let entry_flags = read_word(r)?; consumed += 2;
-        let red = read_byte(r)?; consumed += 1;
-        let green = read_byte(r)?; consumed += 1;
-        let blue = read_byte(r)?; consumed += 1;
-        let alpha = read_byte(r)?; consumed += 1;
+        let entry_flags = read_word(r)?;
+        consumed += 2;
+        let red = read_byte(r)?;
+        consumed += 1;
+        let green = read_byte(r)?;
+        consumed += 1;
+        let blue = read_byte(r)?;
+        consumed += 1;
+        let alpha = read_byte(r)?;
+        consumed += 1;
 
         let name = if entry_flags & 1 != 0 {
             let n = read_string(r)?;
@@ -502,10 +630,21 @@ fn read_palette_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: us
             None
         };
 
-        file.set_palette_entry(i, Color { r: red, g: green, b: blue, a: alpha, name });
+        file.set_palette_entry(
+            i,
+            Color {
+                r: red,
+                g: green,
+                b: blue,
+                a: alpha,
+                name,
+            },
+        );
     }
 
-    if consumed < data_size { skip(r, data_size - consumed)?; }
+    if consumed < data_size {
+        skip(r, data_size - consumed)?;
+    }
     Ok(())
 }
 
@@ -559,7 +698,8 @@ fn apply_user_data(file: &mut AsepriteFile, last_entity: &mut LastEntity, ud: Us
 
 fn read_user_data_chunk<R: Read>(r: &mut R, data_size: usize) -> Result<UserData, AsepriteError> {
     let mut consumed = 0usize;
-    let flags = read_dword(r)?; consumed += 4;
+    let flags = read_dword(r)?;
+    consumed += 4;
 
     let text = if flags & 1 != 0 {
         let s = read_string(r)?;
@@ -575,14 +715,22 @@ fn read_user_data_chunk<R: Read>(r: &mut R, data_size: usize) -> Result<UserData
         let cb = read_byte(r)?;
         let ca = read_byte(r)?;
         consumed += 4;
-        Some(Color { r: cr, g: cg, b: cb, a: ca, name: None })
+        Some(Color {
+            r: cr,
+            g: cg,
+            b: cb,
+            a: ca,
+            name: None,
+        })
     } else {
         None
     };
 
     let properties = if flags & 4 != 0 {
-        let prop_size = read_dword(r)? as usize; consumed += 4;
-        let num_maps = read_dword(r)? as usize; consumed += 4;
+        let prop_size = read_dword(r)? as usize;
+        consumed += 4;
+        let num_maps = read_dword(r)? as usize;
+        consumed += 4;
         let mut maps = Vec::with_capacity(num_maps);
         let mut prop_consumed = 8usize; // the size and num_maps DWORDs count toward prop_size
         for _ in 0..num_maps {
@@ -604,17 +752,25 @@ fn read_user_data_chunk<R: Read>(r: &mut R, data_size: usize) -> Result<UserData
         skip(r, data_size - consumed)?;
     }
 
-    Ok(UserData { text, color, properties })
+    Ok(UserData {
+        text,
+        color,
+        properties,
+    })
 }
 
 fn read_properties_map<R: Read>(r: &mut R) -> Result<(PropertiesMap, usize), AsepriteError> {
     let mut consumed = 0usize;
-    let key = read_dword(r)?; consumed += 4;
-    let num_entries = read_dword(r)? as usize; consumed += 4;
+    let key = read_dword(r)?;
+    consumed += 4;
+    let num_entries = read_dword(r)? as usize;
+    consumed += 4;
     let mut entries = Vec::with_capacity(num_entries);
     for _ in 0..num_entries {
-        let name = read_string(r)?; consumed += 2 + name.len();
-        let type_id = read_word(r)?; consumed += 2;
+        let name = read_string(r)?;
+        consumed += 2 + name.len();
+        let type_id = read_word(r)?;
+        consumed += 2;
         let (value, bytes) = read_property_value(r, type_id)?;
         consumed += bytes;
         entries.push((name, value));
@@ -622,82 +778,104 @@ fn read_properties_map<R: Read>(r: &mut R) -> Result<(PropertiesMap, usize), Ase
     Ok((PropertiesMap { key, entries }, consumed))
 }
 
-fn read_property_value<R: Read>(r: &mut R, type_id: u16) -> Result<(PropertyValue, usize), AsepriteError> {
+fn read_property_value<R: Read>(
+    r: &mut R,
+    type_id: u16,
+) -> Result<(PropertyValue, usize), AsepriteError> {
     match type_id {
-        0x0001 => { // Bool
+        0x0001 => {
+            // Bool
             let v = read_byte(r)?;
             Ok((PropertyValue::Bool(v != 0), 1))
         }
-        0x0002 => { // Int8
+        0x0002 => {
+            // Int8
             let v = read_byte(r)? as i8;
             Ok((PropertyValue::Int8(v), 1))
         }
-        0x0003 => { // UInt8
+        0x0003 => {
+            // UInt8
             let v = read_byte(r)?;
             Ok((PropertyValue::UInt8(v), 1))
         }
-        0x0004 => { // Int16
+        0x0004 => {
+            // Int16
             let v = read_short(r)?;
             Ok((PropertyValue::Int16(v), 2))
         }
-        0x0005 => { // UInt16
+        0x0005 => {
+            // UInt16
             let v = read_word(r)?;
             Ok((PropertyValue::UInt16(v), 2))
         }
-        0x0006 => { // Int32
+        0x0006 => {
+            // Int32
             let v = read_long(r)?;
             Ok((PropertyValue::Int32(v), 4))
         }
-        0x0007 => { // UInt32
+        0x0007 => {
+            // UInt32
             let v = read_dword(r)?;
             Ok((PropertyValue::UInt32(v), 4))
         }
-        0x0008 => { // Int64
+        0x0008 => {
+            // Int64
             let v = read_long64(r)?;
             Ok((PropertyValue::Int64(v), 8))
         }
-        0x0009 => { // UInt64
+        0x0009 => {
+            // UInt64
             let v = read_qword(r)?;
             Ok((PropertyValue::UInt64(v), 8))
         }
-        0x000A => { // Fixed (16.16)
+        0x000A => {
+            // Fixed (16.16)
             let v = read_dword(r)?;
             Ok((PropertyValue::Fixed(v), 4))
         }
-        0x000B => { // Float
+        0x000B => {
+            // Float
             let v = read_float(r)?;
             Ok((PropertyValue::Float(v), 4))
         }
-        0x000C => { // Double
+        0x000C => {
+            // Double
             let v = read_double(r)?;
             Ok((PropertyValue::Double(v), 8))
         }
-        0x000D => { // String
+        0x000D => {
+            // String
             let s = read_string(r)?;
             let bytes = 2 + s.len();
             Ok((PropertyValue::String(s), bytes))
         }
-        0x000E => { // Point
+        0x000E => {
+            // Point
             let x = read_long(r)?;
             let y = read_long(r)?;
             Ok((PropertyValue::Point(x, y), 8))
         }
-        0x000F => { // Size
+        0x000F => {
+            // Size
             let w = read_long(r)?;
             let h = read_long(r)?;
             Ok((PropertyValue::Size(w, h), 8))
         }
-        0x0010 => { // Rect
+        0x0010 => {
+            // Rect
             let x = read_long(r)?;
             let y = read_long(r)?;
             let w = read_long(r)?;
             let h = read_long(r)?;
             Ok((PropertyValue::Rect(x, y, w, h), 16))
         }
-        0x0011 => { // Vector
+        0x0011 => {
+            // Vector
             let mut consumed = 0usize;
-            let count = read_dword(r)? as usize; consumed += 4;
-            let elem_type = read_word(r)?; consumed += 2;
+            let count = read_dword(r)? as usize;
+            consumed += 4;
+            let elem_type = read_word(r)?;
+            consumed += 2;
             let mut elements = Vec::with_capacity(count);
             for _ in 0..count {
                 let (val, bytes) = if elem_type == 0 {
@@ -714,20 +892,25 @@ fn read_property_value<R: Read>(r: &mut R, type_id: u16) -> Result<(PropertyValu
             }
             Ok((PropertyValue::Vector(elements), consumed))
         }
-        0x0012 => { // Properties (nested map)
+        0x0012 => {
+            // Properties (nested map)
             let mut consumed = 0usize;
-            let num_entries = read_dword(r)? as usize; consumed += 4;
+            let num_entries = read_dword(r)? as usize;
+            consumed += 4;
             let mut entries = Vec::with_capacity(num_entries);
             for _ in 0..num_entries {
-                let name = read_string(r)?; consumed += 2 + name.len();
-                let tid = read_word(r)?; consumed += 2;
+                let name = read_string(r)?;
+                consumed += 2 + name.len();
+                let tid = read_word(r)?;
+                consumed += 2;
                 let (value, bytes) = read_property_value(r, tid)?;
                 consumed += bytes;
                 entries.push((name, value));
             }
             Ok((PropertyValue::Properties(entries), consumed))
         }
-        0x0013 => { // UUID
+        0x0013 => {
+            // UUID
             let mut uuid = [0u8; 16];
             r.read_exact(&mut uuid)?;
             Ok((PropertyValue::Uuid(uuid), 16))
@@ -736,97 +919,189 @@ fn read_property_value<R: Read>(r: &mut R, type_id: u16) -> Result<(PropertyValu
     }
 }
 
-fn read_slice_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_slice_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let mut consumed = 0usize;
-    let num_keys = read_dword(r)?; consumed += 4;
-    let flags = read_dword(r)?; consumed += 4;
-    let _reserved = read_dword(r)?; consumed += 4;
-    let name = read_string(r)?; consumed += 2 + name.len();
+    let num_keys = read_dword(r)?;
+    consumed += 4;
+    let flags = read_dword(r)?;
+    consumed += 4;
+    let _reserved = read_dword(r)?;
+    consumed += 4;
+    let name = read_string(r)?;
+    consumed += 2 + name.len();
 
     let has_nine_patch = flags & 1 != 0;
     let has_pivot = flags & 2 != 0;
 
     let mut keys = Vec::new();
     for _ in 0..num_keys {
-        let frame = read_dword(r)?; consumed += 4;
-        let x = read_long(r)?; consumed += 4;
-        let y = read_long(r)?; consumed += 4;
-        let width = read_dword(r)?; consumed += 4;
-        let height = read_dword(r)?; consumed += 4;
+        let frame = read_dword(r)?;
+        consumed += 4;
+        let x = read_long(r)?;
+        consumed += 4;
+        let y = read_long(r)?;
+        consumed += 4;
+        let width = read_dword(r)?;
+        consumed += 4;
+        let height = read_dword(r)?;
+        consumed += 4;
 
         let nine_patch = if has_nine_patch {
-            let cx = read_long(r)?; consumed += 4;
-            let cy = read_long(r)?; consumed += 4;
-            let cw = read_dword(r)?; consumed += 4;
-            let ch = read_dword(r)?; consumed += 4;
-            Some(NinePatch { center_x: cx, center_y: cy, center_width: cw, center_height: ch })
-        } else { None };
+            let cx = read_long(r)?;
+            consumed += 4;
+            let cy = read_long(r)?;
+            consumed += 4;
+            let cw = read_dword(r)?;
+            consumed += 4;
+            let ch = read_dword(r)?;
+            consumed += 4;
+            Some(NinePatch {
+                center_x: cx,
+                center_y: cy,
+                center_width: cw,
+                center_height: ch,
+            })
+        } else {
+            None
+        };
 
         let pivot = if has_pivot {
-            let px = read_long(r)?; consumed += 4;
-            let py = read_long(r)?; consumed += 4;
+            let px = read_long(r)?;
+            consumed += 4;
+            let py = read_long(r)?;
+            consumed += 4;
             Some((px, py))
-        } else { None };
+        } else {
+            None
+        };
 
-        keys.push(SliceKey { frame, x, y, width, height, nine_patch, pivot });
+        keys.push(SliceKey {
+            frame,
+            x,
+            y,
+            width,
+            height,
+            nine_patch,
+            pivot,
+        });
     }
 
-    if consumed < data_size { skip(r, data_size - consumed)?; }
-    file.push_slice(Slice { name, keys, has_nine_patch, has_pivot, user_data: None });
+    if consumed < data_size {
+        skip(r, data_size - consumed)?;
+    }
+    file.push_slice(Slice {
+        name,
+        keys,
+        has_nine_patch,
+        has_pivot,
+        user_data: None,
+    });
     Ok(())
 }
 
 fn read_cel_extra_chunk<R: Read>(r: &mut R, data_size: usize) -> Result<CelExtra, AsepriteError> {
     let mut consumed = 0usize;
-    let _flags = read_dword(r)?; consumed += 4;
-    let precise_x = read_dword(r)?; consumed += 4;
-    let precise_y = read_dword(r)?; consumed += 4;
-    let width = read_dword(r)?; consumed += 4;
-    let height = read_dword(r)?; consumed += 4;
-    skip(r, 16)?; consumed += 16;
-    if consumed < data_size { skip(r, data_size - consumed)?; }
-    Ok(CelExtra { precise_x, precise_y, width, height })
+    let _flags = read_dword(r)?;
+    consumed += 4;
+    let precise_x = read_dword(r)?;
+    consumed += 4;
+    let precise_y = read_dword(r)?;
+    consumed += 4;
+    let width = read_dword(r)?;
+    consumed += 4;
+    let height = read_dword(r)?;
+    consumed += 4;
+    skip(r, 16)?;
+    consumed += 16;
+    if consumed < data_size {
+        skip(r, data_size - consumed)?;
+    }
+    Ok(CelExtra {
+        precise_x,
+        precise_y,
+        width,
+        height,
+    })
 }
 
-fn read_external_files_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_external_files_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let mut consumed = 0usize;
-    let num_entries = read_dword(r)?; consumed += 4;
-    skip(r, 8)?; consumed += 8;
+    let num_entries = read_dword(r)?;
+    consumed += 4;
+    skip(r, 8)?;
+    consumed += 8;
     for _ in 0..num_entries {
-        let id = read_dword(r)?; consumed += 4;
-        let file_type = ExternalFileType::from_u8(read_byte(r)?); consumed += 1;
-        skip(r, 7)?; consumed += 7;
-        let name = read_string(r)?; consumed += 2 + name.len();
-        file.push_external_file(ExternalFile { id, file_type, name });
+        let id = read_dword(r)?;
+        consumed += 4;
+        let file_type = ExternalFileType::from_u8(read_byte(r)?);
+        consumed += 1;
+        skip(r, 7)?;
+        consumed += 7;
+        let name = read_string(r)?;
+        consumed += 2 + name.len();
+        file.push_external_file(ExternalFile {
+            id,
+            file_type,
+            name,
+        });
     }
-    if consumed < data_size { skip(r, data_size - consumed)?; }
+    if consumed < data_size {
+        skip(r, data_size - consumed)?;
+    }
     Ok(())
 }
 
-fn read_tileset_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: usize) -> Result<(), AsepriteError> {
+fn read_tileset_chunk<R: Read>(
+    r: &mut R,
+    file: &mut AsepriteFile,
+    data_size: usize,
+) -> Result<(), AsepriteError> {
     let mut consumed = 0usize;
 
-    let id = read_dword(r)?; consumed += 4;
-    let flags_raw = read_dword(r)?; consumed += 4;
+    let id = read_dword(r)?;
+    consumed += 4;
+    let flags_raw = read_dword(r)?;
+    consumed += 4;
     let flags = TilesetFlags(flags_raw);
-    let tile_count = read_dword(r)?; consumed += 4;
-    let tile_width = read_word(r)?; consumed += 2;
-    let tile_height = read_word(r)?; consumed += 2;
-    let base_index = read_short(r)?; consumed += 2;
-    skip(r, 14)?; consumed += 14;
-    let name = read_string(r)?; consumed += 2 + name.len();
+    let tile_count = read_dword(r)?;
+    consumed += 4;
+    let tile_width = read_word(r)?;
+    consumed += 2;
+    let tile_height = read_word(r)?;
+    consumed += 2;
+    let base_index = read_short(r)?;
+    consumed += 2;
+    skip(r, 14)?;
+    consumed += 14;
+    let name = read_string(r)?;
+    consumed += 2 + name.len();
 
     let mut data = TilesetData::Empty;
 
     if flags.has_external_link() {
-        let external_file_id = read_dword(r)?; consumed += 4;
-        let tileset_id_in_external = read_dword(r)?; consumed += 4;
-        data = TilesetData::External { external_file_id, tileset_id_in_external };
+        let external_file_id = read_dword(r)?;
+        consumed += 4;
+        let tileset_id_in_external = read_dword(r)?;
+        consumed += 4;
+        data = TilesetData::External {
+            external_file_id,
+            tileset_id_in_external,
+        };
     }
 
     if flags.has_embedded_tiles() {
-        let compressed_len = read_dword(r)? as usize; consumed += 4;
-        let compressed = read_bytes(r, compressed_len)?; consumed += compressed_len;
+        let compressed_len = read_dword(r)? as usize;
+        consumed += 4;
+        let compressed = read_bytes(r, compressed_len)?;
+        consumed += compressed_len;
         let mut decoder = flate2::read::ZlibDecoder::new(&compressed[..]);
         let mut decompressed = Vec::new();
         decoder.read_to_end(&mut decompressed)?;
@@ -836,10 +1111,19 @@ fn read_tileset_chunk<R: Read>(r: &mut R, file: &mut AsepriteFile, data_size: us
         };
     }
 
-    if consumed < data_size { skip(r, data_size - consumed)?; }
+    if consumed < data_size {
+        skip(r, data_size - consumed)?;
+    }
 
     file.push_tileset(Tileset {
-        id, flags, name, tile_count, tile_width, tile_height, base_index, data,
+        id,
+        flags,
+        name,
+        tile_count,
+        tile_width,
+        tile_height,
+        base_index,
+        data,
         user_data: None,
         tile_user_data: vec![None; tile_count as usize],
     });
@@ -860,7 +1144,16 @@ fn parse_old_palette_0004(data: &[u8], file: &mut AsepriteFile) -> Result<(), As
             let red = read_byte(&mut r)?;
             let green = read_byte(&mut r)?;
             let blue = read_byte(&mut r)?;
-            file.set_palette_entry(index, Color { r: red, g: green, b: blue, a: 255, name: None });
+            file.set_palette_entry(
+                index,
+                Color {
+                    r: red,
+                    g: green,
+                    b: blue,
+                    a: 255,
+                    name: None,
+                },
+            );
             index += 1;
         }
     }
@@ -884,7 +1177,16 @@ fn parse_old_palette_0011(data: &[u8], file: &mut AsepriteFile) -> Result<(), As
             let red = (r6 << 2) | (r6 >> 4);
             let green = (g6 << 2) | (g6 >> 4);
             let blue = (b6 << 2) | (b6 >> 4);
-            file.set_palette_entry(index, Color { r: red, g: green, b: blue, a: 255, name: None });
+            file.set_palette_entry(
+                index,
+                Color {
+                    r: red,
+                    g: green,
+                    b: blue,
+                    a: 255,
+                    name: None,
+                },
+            );
             index += 1;
         }
     }
@@ -892,7 +1194,9 @@ fn parse_old_palette_0011(data: &[u8], file: &mut AsepriteFile) -> Result<(), As
 }
 
 fn parse_mask_chunk(data: &[u8], file: &mut AsepriteFile) {
-    if data.len() < 16 { return; }
+    if data.len() < 16 {
+        return;
+    }
     let x = i16::from_le_bytes([data[0], data[1]]);
     let y = i16::from_le_bytes([data[2], data[3]]);
     let width = u16::from_le_bytes([data[4], data[5]]);
@@ -900,7 +1204,9 @@ fn parse_mask_chunk(data: &[u8], file: &mut AsepriteFile) {
     // data[8..16] reserved
 
     let mut pos = 16;
-    if pos + 2 > data.len() { return; }
+    if pos + 2 > data.len() {
+        return;
+    }
     let name_len = u16::from_le_bytes([data[pos], data[pos + 1]]) as usize;
     pos += 2;
     let name = if pos + name_len <= data.len() {
@@ -912,5 +1218,12 @@ fn parse_mask_chunk(data: &[u8], file: &mut AsepriteFile) {
 
     let bitmap = data[pos..].to_vec();
 
-    file.push_legacy_mask(LegacyMask { x, y, width, height, name, bitmap });
+    file.push_legacy_mask(LegacyMask {
+        x,
+        y,
+        width,
+        height,
+        name,
+        bitmap,
+    });
 }

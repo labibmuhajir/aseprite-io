@@ -44,9 +44,9 @@
 mod error;
 #[cfg(feature = "image")]
 mod image_conv;
+mod reader;
 #[cfg(feature = "tiny-skia")]
 mod tiny_skia_conv;
-mod reader;
 mod types;
 mod writer;
 
