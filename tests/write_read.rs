@@ -113,6 +113,72 @@ fn linked_cels() {
 }
 
 #[test]
+fn linked_cels_with_options() {
+    let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
+    let layer = file.add_layer("Layer");
+    file.add_frame(100);
+    file.add_frame(100);
+
+    // 1. Set a standard cel at frame 0 as the reference source
+    let pixels = Pixels::new(vec![128u8; 2 * 2 * 4], 2, 2, ColorMode::Rgba).unwrap();
+    file.set_cel(layer, 0, pixels, 0, 0).unwrap();
+
+    let mock_user_data = UserData {
+        text: Some("Linked Custom Text".to_string()),
+        color: None,
+        properties: vec![],
+    };
+    let mock_extra = CelExtra {
+        precise_x: 10,
+        precise_y: 20,
+        width: 2,
+        height: 2,
+    };
+
+    file.set_linked_cel_with(
+        layer,
+        1, // target frame
+        0, // source frame
+        LinkedCelOptions {
+            x: 15,
+            y: -5,
+            opacity: 180,
+            z_index: 3,
+            user_data: Some(mock_user_data),
+            extra: Some(mock_extra),
+        },
+    )
+    .unwrap();
+
+    let out = write_and_read(&file);
+    let layer_ref = out.layer_ref(0).unwrap();
+
+    let cel1 = out.cel(layer_ref, 1).unwrap();
+
+    assert_eq!(cel1.opacity, 180);
+    assert_eq!(cel1.z_index, 3);
+
+    match &cel1.kind {
+        CelKind::Linked { source_frame, x, y } => {
+            assert_eq!(*source_frame, 0);
+            assert_eq!(*x, 15);
+            assert_eq!(*y, -5);
+        }
+        other => panic!("expected CelKind::Linked, got {:?}", other),
+    }
+
+    let user_data = cel1
+        .user_data
+        .as_ref()
+        .expect("UserData should be preserved");
+    assert_eq!(user_data.text.as_deref(), Some("Linked Custom Text"));
+
+    let extra = cel1.extra.as_ref().expect("CelExtra should be preserved");
+    assert_eq!(extra.precise_x, 10);
+    assert_eq!(extra.precise_y, 20);
+}
+
+#[test]
 fn tags_with_directions() {
     let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
     file.add_layer("Layer");
@@ -1463,6 +1529,50 @@ fn resolve_cel_follows_link() {
 
     // resolve_cel on a missing cel returns None
     assert!(file.resolve_cel(layer, 99).is_none());
+}
+
+#[test]
+fn resolve_linked_cel_with_options_follows_link() {
+    let mut file = AsepriteFile::new(2, 2, ColorMode::Rgba);
+    let layer = file.add_layer("Layer");
+    file.add_frame(100);
+    file.add_frame(100);
+
+    let pixels = Pixels::new(vec![42u8; 2 * 2 * 4], 2, 2, ColorMode::Rgba).unwrap();
+    file.set_cel(layer, 0, pixels, 5, 10).unwrap();
+
+    file.set_linked_cel_with(
+        layer,
+        1,
+        0,
+        LinkedCelOptions {
+            x: 12,
+            y: 12,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let resolved_cel = file.resolve_cel(layer, 1).unwrap();
+
+    match &resolved_cel.kind {
+        CelKind::Compressed { x, y, .. } => {
+            assert_eq!(*x, 5);
+            assert_eq!(*y, 10);
+        }
+        CelKind::Raw { x, y, .. } => {
+            assert_eq!(*x, 5);
+            assert_eq!(*y, 10);
+        }
+        CelKind::Linked { .. } => {
+            panic!(
+                "resolve_cel failed! It returned a Linked variant instead of resolving the source target."
+            );
+        }
+        _ => {
+            panic!("expected Compressed or Raw cel, got an unknown variant");
+        }
+    }
 }
 
 #[test]

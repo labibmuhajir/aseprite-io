@@ -417,6 +417,29 @@ impl Default for CelOptions {
     }
 }
 
+/// Options for creating a linked cel with non-default opacity, position, z-index, or metadata.
+pub struct LinkedCelOptions {
+    pub x: i16,
+    pub y: i16,
+    pub opacity: u8,
+    pub z_index: i16,
+    pub user_data: Option<UserData>,
+    pub extra: Option<CelExtra>,
+}
+
+impl Default for LinkedCelOptions {
+    fn default() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            opacity: 255,
+            z_index: 0,
+            user_data: None,
+            extra: None,
+        }
+    }
+}
+
 // --- User Data ---
 
 /// User-defined metadata attached to layers, cels, tags, slices, or the sprite itself.
@@ -1076,6 +1099,39 @@ impl AsepriteFile {
                 extra: None,
             },
         );
+        Ok(())
+    }
+
+    /// Sets a linked cel pointing to another frame's cel with LinkedCelOptions. Returns an error if either frame index is out of bounds.
+    pub fn set_linked_cel_with(
+        &mut self,
+        layer: LayerRef,
+        frame: usize,
+        source_frame: usize,
+        opts: LinkedCelOptions,
+    ) -> Result<(), AsepriteError> {
+        if frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(frame));
+        }
+        if source_frame >= self.frames.len() {
+            return Err(AsepriteError::FrameOutOfBounds(source_frame));
+        }
+
+        self.cels.insert(
+            (layer.0, frame),
+            Cel {
+                kind: CelKind::Linked {
+                    source_frame,
+                    x: opts.x,
+                    y: opts.y,
+                },
+                opacity: opts.opacity,
+                z_index: opts.z_index,
+                user_data: opts.user_data,
+                extra: opts.extra,
+            },
+        );
+
         Ok(())
     }
 
