@@ -24,7 +24,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-aseprite-io = "0.1"
+aseprite-io = "0.2"
 ```
 
 ### Reading a file
