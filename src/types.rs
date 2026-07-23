@@ -77,6 +77,8 @@ pub enum BlendMode {
     Addition,
     Subtract,
     Divide,
+    EferSpriteMixColor,
+    EferSpriteAlphaBlending
 }
 
 impl BlendMode {
@@ -101,6 +103,8 @@ impl BlendMode {
             16 => Self::Addition,
             17 => Self::Subtract,
             18 => Self::Divide,
+            101 => Self::EferSpriteMixColor,
+            102 => Self::EferSpriteAlphaBlending,
             _ => Self::Normal,
         }
     }
@@ -126,6 +130,8 @@ impl BlendMode {
             Self::Addition => 16,
             Self::Subtract => 17,
             Self::Divide => 18,
+            Self::EferSpriteMixColor => 101,
+            Self::EferSpriteAlphaBlending => 102
         }
     }
 }
